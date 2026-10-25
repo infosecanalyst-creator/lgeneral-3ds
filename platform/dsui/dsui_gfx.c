@@ -273,9 +273,11 @@ void dg_blit( SDL_Surface *src, int sx, int sy, int w, int h, int dx, int dy )
 void dg_blit_scaled( SDL_Surface *src, int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh )
 {
     int i, j;
-    Uint32 key = src->format->colorkey;
-    int haskey = ( src->flags & SDL_SRCCOLORKEY ) != 0;
+    Uint32 key;
+    int haskey;
     if ( !T || !src || dw <= 0 || dh <= 0 ) return;
+    key = src->format->colorkey;
+    haskey = ( src->flags & SDL_SRCCOLORKEY ) != 0;
     if ( SDL_MUSTLOCK( src ) ) SDL_LockSurface( src );
     for ( j = 0; j < dh; j++ ) {
         int py = dy + j, syy = sy + j * sh / dh;

@@ -22,6 +22,9 @@ extern u32 __ctru_heap_size; /* libctru: total newlib heap reserved at startup *
 
 #include "n3ds.h"
 
+/* main thread stack: the libctru default (32 KB) is too thin for the engine + AI call chains */
+u32 __stacksize__ = 256 * 1024;
+
 static SDL_Joystick *pad = 0;
 static u8 exc_stack[0x4000] __attribute__((aligned(8)));
 

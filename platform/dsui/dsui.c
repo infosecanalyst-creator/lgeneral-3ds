@@ -37,6 +37,7 @@ static int seen_map_x = -9999, seen_map_y = -9999;
 /* ---------------- map interaction state ---------------- */
 static int cur_mx = -1, cur_my = -1, cursor_on = 0;
 static Unit *fc_target = 0;     /* battle forecast target */
+static Unit *fc_attacker = 0;   /* unit the forecast was computed for */
 static int fc_mx = -1, fc_my = -1, fc_strat = 0, fc_att = 0, fc_def = 0;
 static Unit *detail_unit = 0;   /* long-press / Info: full stats on top screen */
 static Unit *inspect_unit = 0;  /* tapped enemy (no unit selected): card + reach */
@@ -362,10 +363,12 @@ void dsui_confirm( const char *text )
 
 static void clear_selection_state( void )
 {
-    fc_target = 0; fc_strat = 0; fc_mx = fc_my = -1;
+    fc_target = 0; fc_strat = 0; fc_mx = fc_my = -1; fc_attacker = 0;
     detail_unit = 0; inspect_unit = 0;
     reach_on = 0; threat_all = 0;
+    drag_unit = 0;
 }
+void ds_clear_selection( void ) { clear_selection_state(); }
 
 int ds_engine_ready( void ) { return engine_ready; }
 
@@ -378,6 +381,7 @@ void dsui_scenario_loaded( void )
 {
     engine_ready = ( setup.type != SETUP_RUN_TITLE && setup.type != SETUP_CAMP_BRIEFING && map && hex_w > 0 );
     clear_selection_state();
+    seen_sel = 0;
     cursor_on = 0; cur_mx = cur_my = -1;
     last_sel = 0;
     msg_count = 0;
@@ -434,6 +438,7 @@ static void reach_alloc( void )
     if ( !reach || reach_w != map_w || reach_h != map_h ) {
         free( reach );
         reach = calloc( map_w * map_h, 1 );
+        if ( !reach ) { reach_w = reach_h = 0; return; }
         reach_w = map_w; reach_h = map_h;
     }
     memset( reach, 0, map_w * map_h );
@@ -442,8 +447,29 @@ static void reach_alloc( void )
 /* mark move (1) and attack (2) reach of unit u (uses engine path finding) */
 static void reach_add_unit( Unit *u )
 {
-    int x, y, i, j, rng;
+    int x, y, i, j, rng, saved_mov = u->cur_mov, mov = u->sel_prop->mov;
+    int *infl;
+    if ( !reach ) return;
+    /* next-turn reach: full movement points (limited by fuel), and ignore zones of control
+       (the influence masks are built for the current player's enemies, not this unit's) */
+    if ( u->sel_prop->fuel && u->cur_fuel < mov ) mov = u->cur_fuel;
+    u->cur_mov = mov;
+    infl = malloc( sizeof( int ) * 2 * map_w * map_h );
+    if ( infl )
+        for ( x = 0; x < map_w; x++ ) for ( y = 0; y < map_h; y++ ) {
+            infl[2 * ( y * map_w + x )] = mask[x][y].vis_infl;
+            infl[2 * ( y * map_w + x ) + 1] = mask[x][y].vis_air_infl;
+            mask[x][y].vis_infl = mask[x][y].vis_air_infl = 0;
+        }
     map_get_unit_move_mask( u );
+    u->cur_mov = saved_mov;
+    if ( infl ) {
+        for ( x = 0; x < map_w; x++ ) for ( y = 0; y < map_h; y++ ) {
+            mask[x][y].vis_infl = infl[2 * ( y * map_w + x )];
+            mask[x][y].vis_air_infl = infl[2 * ( y * map_w + x ) + 1];
+        }
+        free( infl );
+    }
     rng = u->sel_prop->rng;
     if ( rng < 1 ) rng = 1;
     for ( x = 0; x < map_w; x++ )
@@ -464,6 +490,7 @@ static void compute_reach( Unit *only )
     Unit *u;
     Unit *sel = cur_unit;
     reach_alloc();
+    if ( !reach ) return;
     if ( only ) reach_add_unit( only );
     else {
         list_reset( units );
@@ -504,7 +531,10 @@ static void end_turn_yes( void ) { dsb_end_turn_now(); }
 
 void ds_end_turn_request( void )
 {
-    int n = ds_ready_units();
+    int n;
+    if ( dsb_status() == DSB_STATUS_DEPLOY ) { dsb_press( ID_APPLY_DEPLOY ); return; }
+    if ( dsb_status() != DSB_STATUS_NONE || dsb_cpu_turn() ) return;
+    n = ds_ready_units();
     clear_selection_state();
     if ( n > 0 ) {
         char t[128];
@@ -518,7 +548,7 @@ void ds_end_turn_request( void )
 
 static void set_forecast( Unit *t, int mx, int my, int strat )
 {
-    fc_target = t; fc_mx = mx; fc_my = my; fc_strat = strat;
+    fc_target = t; fc_mx = mx; fc_my = my; fc_strat = strat; fc_attacker = cur_unit;
     fc_att = fc_def = 0;
     if ( t && cur_unit ) unit_get_expected_losses( cur_unit, t, &fc_att, &fc_def );
     cur_mx = mx; cur_my = my;
@@ -604,7 +634,7 @@ static void cancel_action( void )
 {
     int st = dsb_status();
     if ( st == DSB_STATUS_MERGE || st == DSB_STATUS_SPLIT || st == DSB_STATUS_DROP ) {
-        int cx = vx + 10, cy = vy + 10;
+        int cx = ( vx < 0 ? 0 : vx ) + 10, cy = vy + 10;
         if ( cur_unit ) hex_center_canvas( cur_unit->x, cur_unit->y, 1, &cx, &cy );
         inject_click( BUTTON_RIGHT, cx, cy );
     }
@@ -679,6 +709,7 @@ static void deploy_input( void )
 {
     int n = left_deploy_units ? left_deploy_units->count : 0;
     int rows = dep_rows(), i;
+    if ( dep_scroll > ( n > rows ? n - rows : 0 ) ) dep_scroll = n > rows ? n - rows : 0;
     if ( in.pressed & ( K_L | K_R ) && n > 0 ) {
         int idx = list_check( left_deploy_units, deploy_unit );
         idx = ( idx < 0 ) ? 0 : ( idx + ( ( in.pressed & K_R ) ? 1 : n - 1 ) ) % n;
@@ -693,7 +724,7 @@ static void deploy_input( void )
         else if ( in.tap_y >= DS_BOT_H - 30 ) { if ( !dsb_deploy_turn() ) dsb_press( ID_CANCEL_DEPLOY ); }
         else {
             i = dep_scroll + in.tap_y / DEP_ROW;
-            if ( i < n ) dsb_deploy_select( list_get( left_deploy_units, i ) );
+            if ( in.tap_y / DEP_ROW < rows && i < n ) dsb_deploy_select( list_get( left_deploy_units, i ) );
         }
         in.tap = 0;
         ds_mark_all();
@@ -721,13 +752,11 @@ static void move_cursor( int dx, int dy )
             if ( !dsb_map_pos( cx, cy, &cur_mx, &cur_my, &r ) ) { cur_mx = map_x + map_sw / 2; cur_my = map_y + map_sh / 2; }
         }
     }
-    else {
-        cur_mx += dx; cur_my += dy;
-        if ( cur_mx < 0 ) cur_mx = 0;
-        if ( cur_my < 0 ) cur_my = 0;
-        if ( cur_mx >= map_w ) cur_mx = map_w - 1;
-        if ( cur_my >= map_h ) cur_my = map_h - 1;
-    }
+    else { cur_mx += dx; cur_my += dy; }
+    if ( cur_mx >= map_w ) cur_mx = map_w - 1;
+    if ( cur_my >= map_h ) cur_my = map_h - 1;
+    if ( cur_mx < 0 ) cur_mx = 0;
+    if ( cur_my < 0 ) cur_my = 0;
     ensure_visible( cur_mx, cur_my );
     ds_mark_all();
 }
@@ -810,7 +839,7 @@ static void map_input( void )
             act_on_hex( mx, my, cx, cy, region );
         drag_unit = 0;
     }
-    if ( in.long_press ) {
+    if ( in.long_press && !( strip_visible() && in.down_x >= STRIP_X ) && !( deploy && in.down_x < DEP_W ) ) {
         bot_to_canvas( in.tx, in.ty, &cx, &cy );
         if ( dsb_map_pos( cx, cy, &mx, &my, &region ) ) {
             Unit *u = dsb_prim_unit( mx, my, region );
@@ -868,14 +897,14 @@ int dsui_tick( void )
         return ui_mode != UM_NONE;
     }
     if ( !engine_ready ) return 0;
+    /* forecast becomes stale if the selection changed (checked before input so a stale one never attacks) */
+    if ( ( fc_target || fc_strat ) && ( !cur_unit || cur_unit != fc_attacker || dsb_status() != DSB_STATUS_NONE ) ) { fc_target = 0; fc_strat = 0; fc_mx = fc_my = -1; }
     map_input();
     auto_advance();
     if ( cur_unit != seen_sel ) {
         seen_sel = cur_unit;
         if ( cur_unit && cur_unit->x >= 0 && dsb_status() == DSB_STATUS_NONE ) ensure_visible( cur_unit->x, cur_unit->y );
     }
-    /* forecast becomes stale if the selection changed */
-    if ( ( fc_target || fc_strat ) && ( !cur_unit || dsb_status() != DSB_STATUS_NONE ) ) { fc_target = 0; fc_strat = 0; }
     if ( fc_target && fc_target->killed ) fc_target = 0;
     if ( inspect_unit && inspect_unit->killed ) inspect_unit = 0;
     if ( detail_unit && detail_unit->killed ) detail_unit = 0;
@@ -976,6 +1005,7 @@ static void draw_deploy_strip( void )
     int n = left_deploy_units ? left_deploy_units->count : 0;
     int rows = dep_rows(), i;
     int x = DS_BOT_X;
+    if ( dep_scroll > ( n > rows ? n - rows : 0 ) ) dep_scroll = n > rows ? n - rows : 0;
     dg_fill_a( x, DS_BOT_Y, DEP_W, DS_BOT_H, DC_BG, 220 );
     for ( i = 0; i < rows && dep_scroll + i < n; i++ ) {
         Unit *u = list_get( left_deploy_units, dep_scroll + i );

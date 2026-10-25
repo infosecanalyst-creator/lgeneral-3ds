@@ -751,12 +751,13 @@ void scr_open_game_menu( void )
     lst_add( "Deploy units", t, G_DEPLOY, dsb_deploy_allowed() );
     lst_add( "Scenario info", 0, G_INFO, 1 );
     lst_add( "Victory conditions", 0, G_CONDS, 1 );
-    lst_add( "Save game", 0, G_SAVE, 1 );
+    lst_add( "Save game", 0, G_SAVE, dsb_status() == DSB_STATUS_NONE && !dsb_deploy_turn() );
     lst_add( "Load game", 0, G_LOAD, 1 );
     lst_add( "Options", 0, G_OPTIONS, 1 );
     lst_add( "How to play", 0, G_HELP, 1 );
     lst_add( "Disband selected unit", 0, G_DISBAND, cur_unit && cur_unit->unused );
-    lst_add( "End turn", 0, G_ENDTURN, 1 );
+    if ( dsb_status() == DSB_STATUS_DEPLOY ) lst_add( "Finish deployment", 0, G_ENDTURN, 1 );
+    else lst_add( "End turn", 0, G_ENDTURN, dsb_status() == DSB_STATUS_NONE );
     lst_add( "Restart scenario", 0, G_RESTART, 1 );
     lst_add( "Quit to title", 0, G_QUIT, 1 );
     ui_mode = UM_MENU;
@@ -824,6 +825,7 @@ static void unitlist_input( void )
     if ( r > 0 && r <= n_items ) {
         Unit *u = ulist[r - 1];
         scr_close();
+        ds_clear_selection();
         ds_center_on( u->x, u->y );
         dsb_select( u );
     }
@@ -1036,7 +1038,7 @@ static void purchase_input( void )
             }
             if ( in.tap_y >= DS_BOT_H - FOOT_H ) { pu_affordable_only = !pu_affordable_only; sel = 0; pu_build_list(); return; }
             i = pu_class_top + ( in.tap_y - HEAD_H ) / PU_CLASS_ROW;
-            if ( i >= 0 && i < pu_nclasses ) { pu_class = i; sel = 0; pu_build_list(); }
+            if ( ( in.tap_y - HEAD_H ) / PU_CLASS_ROW < rows && i >= 0 && i < pu_nclasses ) { pu_class = i; sel = 0; pu_build_list(); }
             return;
         }
         if ( in.drag && in.down_x < PU_CLASS_W ) {
