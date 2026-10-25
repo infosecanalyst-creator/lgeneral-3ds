@@ -16,7 +16,12 @@ APP_DESCRIPTION := Panzer General engine (3DS port)
 APP_AUTHOR      := Michael Speck / 3DS port
 APP_ICON        := platform/3ds/icon.png
 
+# DSUI = native dual-screen front end (platform/dsui); make DSUI=0 for the plain 640x480 port
+DSUI ?= 1
 SRCS := $(wildcard lgeneral/src/*.c) $(wildcard lgeneral/util/*.c) $(wildcard platform/3ds/*.c)
+ifeq ($(DSUI),1)
+SRCS += $(wildcard platform/dsui/*.c)
+endif
 OBJS := $(patsubst %.c,$(BUILD)/%.o,$(SRCS))
 DEPS := $(OBJS:.o=.d)
 
@@ -37,6 +42,10 @@ CFLAGS := -g -O2 -Wall -Wno-unused -Wno-pointer-sign -Wno-format-overflow \
           -D__3DS__ -DHAVE_CONFIG_H -DINSTALLDIR=\"sdmc:/3ds/lgeneral\" \
           -Ilgeneral -Ilgeneral/src -Ilgeneral/util -Iplatform/3ds \
           $(SDL_CFLAGS) -I$(CTRULIB)/include
+
+ifeq ($(DSUI),1)
+CFLAGS += -DDSUI -Iplatform/dsui
+endif
 
 # sound: off for the first boot (make SOUND=1 once 3ds-sdl_mixer is installed)
 SOUND ?= 0

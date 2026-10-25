@@ -5,3 +5,5 @@ lgeneral.3dsx
 build.log
 .ftp-uploaded-*
 data/
+build-sim/
+lgeneral-sim

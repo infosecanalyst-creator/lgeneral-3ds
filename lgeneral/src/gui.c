@@ -109,7 +109,11 @@ int deploy_show_count = 7; /* number of displayed units in list */
 int unit_list_offset = 0; /* offset in unit_list */
 int unit_list_max_offset = 0;
 int unit_list_graphical_offset=150; /* y-offset for rendering in dialog */ 
-int gui_panel_w = 44;	/* size of fixed GUI panel */;
+#ifdef DSUI
+int gui_panel_w = 0;	/* 3DS front end: no side panel */
+#else
+int gui_panel_w = 44;
+#endif	/* size of fixed GUI panel */;
 
 /*
 ====================================================================
@@ -620,6 +624,9 @@ Hide/draw from/to screen
 */
 void gui_get_bkgnds()
 {
+#ifdef DSUI
+    return; /* engine windows are replaced by the native 3DS front end */
+#endif
     frame_get_bkgnd( gui->panel );
     label_get_bkgnd( gui->label );
     label_get_bkgnd( gui->label2 );
@@ -647,6 +654,9 @@ void gui_get_bkgnds()
 }
 void gui_draw_bkgnds()
 {
+#ifdef DSUI
+    return;
+#endif
     frame_draw_bkgnd( gui->panel ); // includes some windows
     label_draw_bkgnd( gui->label );
     label_draw_bkgnd( gui->label2 );
@@ -674,6 +684,9 @@ void gui_draw_bkgnds()
 }
 void gui_draw()
 {
+#ifdef DSUI
+    return;
+#endif
     frame_draw(gui->panel);
     label_draw( gui->label ); 
     label_draw( gui->label2 ); 
@@ -1300,6 +1313,9 @@ Handle deploy window.
 int gui_handle_deploy_click(int button, int cx, int cy)
 {
     int i;
+#ifdef DSUI
+    return 0; /* deploy list is the native strip */
+#endif
     if ( button == WHEEL_UP ) {
         gui_scroll_deploy_up();
     }
@@ -2121,3 +2137,70 @@ void gui_update_minimap(int full)
 	mmview_adjust_viewport(gui->minimap);
 	mmview_render(gui->minimap,full);
 }
+
+#ifdef DSUI
+/* ---- accessors for the native 3DS front end ---- */
+const char *gui_message_pane_text( void *p ) { return p ? ((MessagePane*)p)->text : 0; }
+int gui_message_pane_option_count( void *p ) { return p ? (int)((MessagePane*)p)->options_count : 0; }
+const char *gui_message_pane_option_desc( void *p, int i ) { return ((MessagePane*)p)->options[i].desc; }
+const char *gui_message_pane_option_id( void *p, int i ) { return ((MessagePane*)p)->options[i].id; }
+const char *gui_message_pane_default( void *p ) { return p ? ((MessagePane*)p)->default_id : 0; }
+
+static void dsui_cat( char *buf, int size, const char *s )
+{
+    strncat( buf, s, size - strlen( buf ) - 1 );
+}
+/* scenario info as text ('#' = newline); caller frees */
+char *gui_scen_info_text( void )
+{
+    int size = 4096;
+    char *b = calloc( size, 1 ), str[256];
+    if ( !b || !scen_info ) return b;
+    dsui_cat( b, size, scen_info->desc ); dsui_cat( b, size, "##" );
+    scen_get_date( str ); dsui_cat( b, size, str ); dsui_cat( b, size, "#" );
+    if ( turn + 1 < scen_info->turn_limit )
+        snprintf( str, sizeof str, tr("Turns left: %i#"), scen_info->turn_limit - turn );
+    else
+        snprintf( str, sizeof str, "%s#", tr("Turns left: last turn") );
+    dsui_cat( b, size, str );
+    if ( cur_player ) {
+        snprintf( str, sizeof str, tr("Current player: %s#"), cur_player->name ); dsui_cat( b, size, str );
+        if ( players_test_next() ) {
+            snprintf( str, sizeof str, tr("Next player: %s#"), players_test_next()->name ); dsui_cat( b, size, str );
+        }
+    }
+    snprintf( str, sizeof str, tr("Weather: %s, forecast: %s#"),
+              ( turn < scen_info->turn_limit ) ? weather_types[scen_get_weather()].name : tr("n/a"),
+              ( turn + 1 < scen_info->turn_limit ) ? weather_types[scen_get_forecast()].name : tr("n/a") );
+    dsui_cat( b, size, str );
+    return b;
+}
+/* victory conditions as text; caller frees */
+char *gui_conds_text( void )
+{
+    int size = 4096, i, j;
+    char *b = calloc( size, 1 ), str[256], sub[200];
+    if ( !b ) return b;
+    snprintf( str, sizeof str, tr("Victory conditions (checked %s):##"),
+              ( vcond_check_type == VCOND_CHECK_EVERY_TURN ) ? tr("every turn") : tr("on the last turn") );
+    dsui_cat( b, size, str );
+    for ( i = 1; i < vcond_count; i++ ) {
+        snprintf( str, sizeof str, "%s:#", vconds[i].message ); dsui_cat( b, size, str );
+        for ( j = 0; j < vconds[i].sub_and_count; j++ ) {
+            gui_render_subcond( &vconds[i].subconds_and[j], sub );
+            snprintf( str, sizeof str, "  %s %s: %s#", j ? tr("and") : "-",
+                      vconds[i].subconds_and[j].player ? vconds[i].subconds_and[j].player->name : "", sub );
+            dsui_cat( b, size, str );
+        }
+        for ( j = 0; j < vconds[i].sub_or_count; j++ ) {
+            gui_render_subcond( &vconds[i].subconds_or[j], sub );
+            snprintf( str, sizeof str, "  %s %s: %s#", j ? tr("or") : "-",
+                      vconds[i].subconds_or[j].player ? vconds[i].subconds_or[j].player->name : "", sub );
+            dsui_cat( b, size, str );
+        }
+    }
+    snprintf( str, sizeof str, tr("#Otherwise: %s#"), vconds[0].message );
+    dsui_cat( b, size, str );
+    return b;
+}
+#endif

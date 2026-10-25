@@ -20,6 +20,9 @@
 #endif
 #include <math.h>
 #include "lgeneral.h"
+#ifdef DSUI
+#include "dsui.h"
+#endif
 #include "date.h"
 #include "event.h"
 #include "windows.h"
@@ -720,6 +723,9 @@ the last action stored will be removed)
 */
 static void engine_confirm_action( const char *text )
 {
+#ifdef DSUI
+    dsui_confirm( text );
+#endif
     top_committed_action = 0;
     gui_show_confirm( text );
     status = STATUS_CONF;
@@ -735,6 +741,9 @@ actions are removed.
 */
 static void engine_confirm_actions( Action *last_persistent_action, const char *text )
 {
+#ifdef DSUI
+    dsui_confirm( text );
+#endif
     top_committed_action = last_persistent_action;
     gui_show_confirm( text );
     status = STATUS_CONF;
@@ -748,6 +757,10 @@ returns True).
 */
 static void engine_show_final_message()
 {
+#ifdef DSUI
+    dsui_status_screen( tr("Scenario finished"), scen_get_result_message(), 0 );
+    return;
+#endif
     event_wait_until_no_input();
     SDL_FillRect( sdl.screen, 0, 0x0 );
     gui->font_turn_info->align = ALIGN_X_CENTER | ALIGN_Y_CENTER;
@@ -771,6 +784,37 @@ static void engine_show_turn_info()
     int time_factor;
     char text[400];
     int n;
+#ifdef DSUI
+    {
+        char body[1600], line[400], date[128];
+        scen_get_date( date );
+        body[0] = 0;
+        if ( deploy_turn ) {
+            if ( cur_player->ctrl != PLAYER_CTRL_HUMAN ) return;
+            snprintf( body, sizeof body, "%s#%s##%s", date, cur_player->name, tr("Deploy your troops, then tap Done.") );
+            dsui_status_screen( tr("Deployment"), body, 0 );
+            return;
+        }
+        snprintf( body, sizeof body, "%s#", date );
+        if ( turn + 1 < scen_info->turn_limit )
+            snprintf( line, sizeof line, tr("Turn %d of %d - %d left#"), turn + 1, scen_info->turn_limit, scen_info->turn_limit - turn );
+        else
+            snprintf( line, sizeof line, "%s#", tr("Last turn") );
+        strncat( body, line, sizeof body - strlen( body ) - 1 );
+        snprintf( line, sizeof line, tr("Weather: %s#"), weather_types[scen_get_weather()].name );
+        strncat( body, line, sizeof body - strlen( body ) - 1 );
+        if ( avail_units->count > 0 && cur_player->ctrl == PLAYER_CTRL_HUMAN )
+            strncat( body, tr("#New units can be deployed (Start > Deploy).#"), sizeof body - strlen( body ) - 1 );
+        if ( sMessages )
+            for ( n = 0; n < sMessage_count; n++ )
+                if ( sMessages[n].turn == turn && !strcmp( sMessages[n].player->id, cur_player->id ) ) {
+                    snprintf( line, sizeof line, "#%s#", sMessages[n].message );
+                    strncat( body, line, sizeof body - strlen( body ) - 1 );
+                }
+        dsui_status_screen( cur_player->name, body, cur_player->ctrl == PLAYER_CTRL_HUMAN ? 0 : 900 );
+        return;
+    }
+#endif
     FULL_DEST( sdl.screen );
     fill_surf( 0x0 );
 #if 0
@@ -1208,6 +1252,9 @@ static void engine_begin_turn( Player *forced_player, int skip_unit_prep )
     engine_show_turn_info();
     engine_set_status( deploy_turn ? STATUS_DEPLOY : STATUS_NONE );
     phase = PHASE_NONE;
+#ifdef DSUI
+    dsui_turn_begins( cur_ctrl == PLAYER_CTRL_HUMAN );
+#endif
     engine_check_unit_buttons();
     engine_check_menu_buttons();
     /* update screen */
@@ -1485,6 +1532,9 @@ static void engine_check_scroll(int by_wheel)
     int mx, my, cx, cy;
     if ( scroll_block ) return;
     if ( setup.type == SETUP_RUN_TITLE ) return;
+#ifdef DSUI
+    return; /* the 3DS front end pans the view itself */
+#endif
     if( !by_wheel ) {
         /* keys */
         scroll_hori = scroll_vert = SCROLL_NONE;
@@ -2103,6 +2153,9 @@ static void engine_end_frame()
         refresh_screen( 0, 0, 0, 0 );
     else
         refresh_rects();
+#ifdef DSUI
+    dsui_frame();
+#endif
 }
 
 /*
@@ -2623,6 +2676,9 @@ static void engine_undeploy_unit( Unit *unit )
 Get actions from input events or CPU and queue them.
 ====================================================================
 */
+#ifdef DSUI
+static int dsb_reinit = 0;
+#endif
 static void engine_check_events(int *reinit)
 {
     int region;
@@ -2634,6 +2690,13 @@ static void engine_check_events(int *reinit)
     int nx, ny;
     SDL_PumpEvents(); /* gather events in the queue */
     if ( sdl_quit ) term_game = 1; /* end game by window manager */
+#ifdef DSUI
+    {
+        int modal = dsui_tick();
+        if ( dsb_reinit ) { dsb_reinit = 0; *reinit = 1; end_scen = 1; return; }
+        if ( modal ) return;
+    }
+#endif
     if ( status == STATUS_MOVE || status == STATUS_ATTACK || status == STATUS_STRAT_ATTACK )
         return;
     if ( cur_ctrl == PLAYER_CTRL_CPU ) {
@@ -4398,6 +4461,9 @@ int engine_init()
     char path[256];
 #endif
     end_scen = 0;
+#ifdef DSUI
+    dsui_engine_reset();
+#endif
     /* build action queue */
     actions_create();
     /* scenario&campaign or title*/
@@ -4534,6 +4600,9 @@ int engine_init()
     gui_panel_show();
     engine_check_unit_buttons();
     engine_check_menu_buttons();
+#ifdef DSUI
+    dsui_scenario_loaded();
+#endif
     return 1;
 }
 void engine_shutdown()
@@ -4631,3 +4700,81 @@ void engine_run()
         scen_clear_result();
     }
 }
+
+#ifdef DSUI
+/*
+====================================================================
+Bridge for the native 3DS front end (platform/dsui)
+====================================================================
+*/
+int   dsb_status( void ) { return status; }
+void  dsb_set_status( int s ) { engine_set_status( s ); }
+void  dsb_press( int id ) { engine_handle_button( id ); }
+int   dsb_map_pos( int cx, int cy, int *mx, int *my, int *region )
+{
+    if ( cx < 0 || cy < 0 || !sdl.screen || cx >= sdl.screen->w || cy >= sdl.screen->h ) return 0;
+    return engine_get_map_pos( cx, cy, mx, my, region );
+}
+int   dsb_screen_pos( int mx, int my, int *sx, int *sy ) { return engine_get_screen_pos( mx, my, sx, sy ); }
+Unit *dsb_target( int mx, int my, int region ) { return engine_get_target( mx, my, region ); }
+Unit *dsb_prim_unit( int mx, int my, int region ) { return engine_get_prim_unit( mx, my, region ); }
+Unit *dsb_select_unit_at( int mx, int my, int region ) { return engine_get_select_unit( mx, my, region ); }
+int   dsb_strat_target( int mx, int my ) { return engine_has_strategic_target( 1, mx, my ); }
+void  dsb_select( Unit *u )
+{
+    engine_select_unit( u );
+    if ( u ) engine_update_info( u->x, u->y, 0 );
+    engine_check_unit_buttons();
+    draw_map = 1;
+}
+void  dsb_focus( int mx, int my ) { engine_focus( mx, my, 0 ); }
+void  dsb_goto( int x, int y ) { engine_goto_xy( x, y ); }
+void  dsb_redraw( void ) { draw_map = 1; }
+int   dsb_can_undo( void ) { return move_backup.used; }
+int   dsb_merge_count( void ) { return merge_unit_count; }
+int   dsb_deploy_turn( void ) { return deploy_turn; }
+int   dsb_cpu_turn( void ) { return cur_ctrl == PLAYER_CTRL_CPU; }
+void  dsb_deploy_select( Unit *u )
+{
+    deploy_unit = u;
+    map_get_deploy_mask( cur_player, deploy_unit, deploy_turn );
+    map_set_fog( F_DEPLOY );
+    draw_map = 1;
+}
+void *dsb_camp_pane( void ) { return camp_pane; }
+void  dsb_camp_choose( const char *result )
+{
+    if ( result == 0 ) result = gui_message_pane_default( camp_pane );
+    if ( result == 0 ) return;
+    if ( strcmp( result, "nextscen" ) == 0 ) {
+        sprintf( setup.fname, "%s", camp_cur_scen->scen );
+        setup.type = SETUP_DEFAULT_SCEN;
+    } else {
+        setup.type = SETUP_CAMP_BRIEFING;
+        engine_store_debriefing( 0 );
+        if ( !camp_set_next( result ) )
+            setup.type = SETUP_RUN_TITLE;
+    }
+    dsb_reinit = 1;
+}
+void  dsb_quit_to_title( void )
+{
+    engine_set_status( STATUS_NONE );
+    setup.type = SETUP_RUN_TITLE;
+    dsb_reinit = 1;
+}
+int   dsb_purchase_allowed( void )
+{
+    return config.purchase && cur_ctrl == PLAYER_CTRL_HUMAN && !deploy_turn && status == STATUS_NONE;
+}
+int   dsb_deploy_allowed( void )
+{
+    return avail_units && avail_units->count > 0 && status == STATUS_NONE && cur_ctrl == PLAYER_CTRL_HUMAN;
+}
+void  dsb_end_turn_now( void )
+{
+    engine_select_unit( 0 );
+    action_queue_end_turn();
+    draw_map = 1;
+}
+#endif

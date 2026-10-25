@@ -17,6 +17,9 @@
 
 #include "lgeneral.h"
 #include "event.h"
+#ifdef DSUI
+#include "dsui.h"
+#endif
 
 int buttonup = 0, buttondown = 0;
 int motion = 0;
@@ -63,7 +66,7 @@ static int event_is_key_pressed()
     return 0;
 }
 
-#ifdef __3DS__
+#if defined(__3DS__) && !defined(DSUI)
 /*
 ====================================================================
 3DS buttons -> LGeneral mouse/keys (first-boot mapping).
@@ -141,7 +144,10 @@ will be available by SDL_PollEvent().
 */
 int event_filter( const SDL_Event *event )
 {
-#ifdef __3DS__
+#ifdef DSUI
+    if ( dsui_filter( event ) == 0 ) return 0;
+#endif
+#if defined(__3DS__) && !defined(DSUI)
     if ( event->type >= SDL_JOYAXISMOTION && event->type <= SDL_JOYBUTTONUP )
         return n3ds_filter( event );
 #endif
@@ -311,3 +317,17 @@ void event_wait_until_no_input()
     }
     event_clear();
 }
+
+#ifdef DSUI
+/* input injection for the native 3DS front end (canvas coordinates) */
+void event_inject_motion( int x, int y )
+{
+    motion_x = x; motion_y = y; motion = 1;
+}
+void event_inject_button( int button, int down, int x, int y )
+{
+    motion_x = x; motion_y = y; motion = 1;
+    if ( button >= 0 && button < 10 ) buttonstate[button] = down;
+    if ( down ) buttondown = button; else buttonup = button;
+}
+#endif

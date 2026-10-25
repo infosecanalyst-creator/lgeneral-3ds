@@ -16,6 +16,9 @@
  ***************************************************************************/
 
 #include "lg-sdl.h"
+#ifdef DSUI
+#include "dsui.h"
+#endif
 
 #include "misc.h"
 
@@ -625,6 +628,10 @@ int set_video_mode( int width, int height, int fullscreen )
 #endif
     int depth = 32;
     int flags = SDL_SWSURFACE;
+#ifdef DSUI
+    if ( !sdl.screen ) sdl.screen = dsui_video_init();
+    return sdl.screen ? 0 : 1;
+#endif
     /* if screen does exist check if this is mayby exactly the same resolution */
     if ( sdl.screen ) {
         if ( sdl.screen->w == width && sdl.screen->h == height )
@@ -698,6 +705,11 @@ void hardware_cap()
 */
 void refresh_screen(int x, int y, int w, int h)
 {
+#ifdef DSUI
+    dsui_canvas_updated( 0, 0 );
+    sdl.rect_count = 0;
+    return;
+#endif
     SDL_UpdateRect(sdl.screen, x, y, w, h);
     sdl.rect_count = 0;
 }
@@ -707,6 +719,12 @@ void refresh_screen(int x, int y, int w, int h)
 */
 void refresh_rects()
 {
+#ifdef DSUI
+    if ( sdl.rect_count == RECT_LIMIT ) dsui_canvas_updated( 0, 0 );
+    else if ( sdl.rect_count > 0 ) dsui_canvas_updated( sdl.rect_count, sdl.rect );
+    sdl.rect_count = 0;
+    return;
+#endif
     if (sdl.rect_count == RECT_LIMIT)
         SDL_UpdateRect(sdl.screen, 0, 0, sdl.screen->w, sdl.screen->h);
     else
@@ -873,6 +891,9 @@ inline void unlock_screen()
 */
 inline void flip_screen()
 {
+#ifdef DSUI
+    dsui_canvas_updated( 0, 0 ); return;
+#endif
     SDL_Flip(sdl.screen);
 }
 

@@ -517,4 +517,13 @@ void gui_resize_panel();
 void gui_init_minimap();
 void gui_update_minimap(int full);
 
+#ifdef DSUI
+const char *gui_message_pane_text( void *pane );
+int gui_message_pane_option_count( void *pane );
+const char *gui_message_pane_option_desc( void *pane, int i );
+const char *gui_message_pane_option_id( void *pane, int i );
+const char *gui_message_pane_default( void *pane );
+char *gui_scen_info_text( void );
+char *gui_conds_text( void );
+#endif
 #endif

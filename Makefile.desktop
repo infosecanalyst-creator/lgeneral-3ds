@@ -1,26 +1,44 @@
-# Desktop (Linux/MSYS2) test build of the same sources, for fast UI/AI iteration
-# usage: make -f Makefile.desktop      -> ./lgeneral-desktop (data from ./data)
+# Desktop builds of the same sources (Linux/MSYS2, desktop SDL 1.2)
+#   make -f Makefile.desktop          -> ./lgeneral-sim      3DS front end in a 400x480 window (default)
+#   make -f Makefile.desktop SIM=0    -> ./lgeneral-desktop  original desktop interface
+# Simulator keys: arrows = D-pad, Z = A, X = B, S = X, A = Y, Q = L, W = R, 1/2 = ZL/ZR,
+#                 Enter = Start, Backspace = Select, I/J/K/L = C-stick; mouse on the lower screen = touch
 CC      ?= gcc
+SIM     ?= 1
 SRCS    := $(wildcard lgeneral/src/*.c) $(wildcard lgeneral/util/*.c)
-OBJS    := $(patsubst %.c,build-desktop/%.o,$(SRCS))
 CFLAGS  ?= -O2 -g
-CFLAGS  += -fgnu89-inline -Wall -Wno-unused -Wno-pointer-sign -DHAVE_CONFIG_H -DINSTALLDIR=\"$(CURDIR)/data\" \
+CFLAGS  += -fgnu89-inline -Wall -Wno-unused -Wno-pointer-sign -Wno-format-overflow -Wno-format-truncation \
+           -DHAVE_CONFIG_H -DINSTALLDIR=\"$(CURDIR)/data\" \
            -Ilgeneral -Ilgeneral/src -Ilgeneral/util $(shell sdl-config --cflags)
 LIBS    := $(shell sdl-config --libs) -lm
+
+ifeq ($(SIM),1)
+SRCS    += $(wildcard platform/dsui/*.c)
+CFLAGS  += -DDSUI -Iplatform/dsui
+OUTDIR  := build-sim
+TARGET  := lgeneral-sim
+else
+OUTDIR  := build-desktop
+TARGET  := lgeneral-desktop
+endif
 
 ifneq ($(NOSOUND),1)
 CFLAGS  += -DWITH_SOUND
 LIBS    += -lSDL_mixer
 endif
 
-lgeneral-desktop: $(OBJS)
+OBJS    := $(patsubst %.c,$(OUTDIR)/%.o,$(SRCS))
+
+$(TARGET): $(OBJS)
 	$(CC) -o $@ $^ $(LIBS)
 
-build-desktop/%.o: %.c
+$(OUTDIR)/%.o: %.c
 	@mkdir -p $(dir $@)
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -MMD -MP -c $< -o $@
+
+-include $(OBJS:.o=.d)
 
 clean:
-	rm -rf build-desktop lgeneral-desktop
+	rm -rf build-sim build-desktop lgeneral-sim lgeneral-desktop
 
 .PHONY: clean
