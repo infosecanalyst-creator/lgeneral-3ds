@@ -16,8 +16,9 @@ GitHub Actions builds `lgeneral.3dsx` on every push (Actions tab → latest run 
   unit list, overview map, options and a 4-page How to play.
 - Autosave at the start of each of your turns; **Continue** on the title screen resumes it.
 
-Not yet: stereoscopic 3D (SDL 1.2 on 3DS has no stereo output), sound (`SOUND=1` once
-`3ds-sdl_mixer` is wired up). `make DSUI=0` still builds the old single-screen 640x480 port.
+Sound effects play when the 3DS has its DSP firmware dumped (`sdmc:/3ds/dspfirm.cdc`); otherwise the
+game runs silently. Options has Sound and Volume. Not yet: stereoscopic 3D (SDL 1.2 on 3DS has no
+stereo output). `make DSUI=0` still builds the old single-screen 640x480 port.
 
 ## Build (devkitPro MSYS2 shell)
 
@@ -26,7 +27,7 @@ Not yet: stereoscopic 3D (SDL 1.2 on 3DS has no stereo output), sound (`SOUND=1`
     bash build-lgeneral.sh
 
 Output goes to one place only: `C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral\`.
-Needs `3ds-sdl` (SDL 1.2) from portlibs. Sound is off until `3ds-sdl_mixer` is added (`SOUND=1`).
+Needs `3ds-sdl` and `3ds-sdl_mixer` from portlibs (`SOUND=0` builds without sound).
 
 ## Install over Wi-Fi
 
