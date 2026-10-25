@@ -1,0 +1,30 @@
+name: build-3ds
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SDL 1.2 for 3DS
+        run: dkp-pacman -Sy --noconfirm --needed 3ds-sdl
+
+      - name: Build lgeneral.3dsx
+        run: make -j"$(nproc)"
+
+      - name: Desktop syntax sanity (3DS paths only compile on device toolchain)
+        run: ls -la lgeneral.3dsx build/lgeneral.elf
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lgeneral-3ds-${{ github.sha }}
+          path: |
+            lgeneral.3dsx
+            build/lgeneral.elf
+            build/lgeneral.map

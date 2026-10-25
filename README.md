@@ -1,7 +1,10 @@
 # LGeneral 3DS
 
 Port of [LGeneral](https://lgames.sourceforge.io/LGeneral/) 1.4.4 (Panzer General engine, GPL) to the New 3DS XL.
-Includes the Panzer General and K.u.k General WWI data from the official LGeneral Windows package.
+Game data (converted Panzer General + K.u.k General WWI) comes from the official LGeneral Windows package and is
+not stored in this repo: run `bash tools/fetch-data.sh` once to put it in `./data`.
+
+GitHub Actions builds `lgeneral.3dsx` on every push (Actions tab → latest run → artifact).
 
 ## Status: phase 2 - first 3DS boot
 
@@ -11,6 +14,7 @@ Phase 3 replaces it with the dual-screen layout (map + stylus on the bottom scre
 
 ## Build (devkitPro MSYS2 shell)
 
+    bash tools/fetch-data.sh      # first time only
     cd /c/devkitPro/3ds-projects/lgeneral-3ds
     bash build-lgeneral.sh
 
