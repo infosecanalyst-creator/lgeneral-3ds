@@ -14,8 +14,8 @@ Phase 3 replaces it with the dual-screen layout (map + stylus on the bottom scre
 
 ## Build (devkitPro MSYS2 shell)
 
-    bash tools/fetch-data.sh      # first time only
     cd /c/devkitPro/3ds-projects/lgeneral-3ds
+    bash tools/fetch-data.sh      # first time only
     bash build-lgeneral.sh
 
 Output goes to one place only: `C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral\`.
