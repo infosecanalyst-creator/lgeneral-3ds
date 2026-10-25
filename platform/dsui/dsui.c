@@ -46,6 +46,7 @@ static int reach_w = 0, reach_h = 0, reach_on = 0, threat_all = 0;
 static Unit *drag_unit = 0;     /* drag-to-move source */
 static int panning = 0;
 static Unit *last_sel = 0;
+static int menu_pending = 0;      /* Start pressed during a CPU turn */
 static Unit *seen_sel = 0;        /* to bring a newly selected unit into view */
 static int last_sel_spent = 0;
 static unsigned last_sig = 0;
@@ -397,8 +398,45 @@ void dsui_scenario_loaded( void )
     ds_mark_all();
 }
 
+static int any_human_player( void )
+{
+    Player *p;
+    if ( !players ) return 0;
+    list_reset( players );
+    while ( ( p = list_next( players ) ) )
+        if ( p->ctrl == PLAYER_CTRL_HUMAN ) return 1;
+    return 0;
+}
+
+/* all sides are CPU: let the viewer keep watching, take a side, or leave */
+static void spectator_menu( void )
+{
+    const char *opts[4];
+    Player *p, *side[2] = { 0, 0 };
+    char take[2][48];
+    int n = 0, k = 0, r;
+    opts[n++] = "Keep watching";
+    list_reset( players );
+    while ( ( p = list_next( players ) ) && k < 2 ) {
+        snprintf( take[k], sizeof take[k], "Play as %.30s", p->name );
+        side[k] = p; opts[n++] = take[k]; k++;
+    }
+    opts[n++] = "Quit to title";
+    r = dsui_choice_screen( "All sides are CPU", "Every side is played by the computer. "
+                            "You can take over a side - you play it from its next turn.", opts, n );
+    if ( r >= 1 && r <= k ) {
+        side[r - 1]->ctrl = PLAYER_CTRL_HUMAN;
+        push_msg( "You take over from that side's next turn" );
+    }
+    else if ( r == n - 1 ) dsb_quit_to_title();
+}
+
 void dsui_turn_begins( int human )
 {
+    if ( menu_pending ) {
+        if ( human ) { menu_pending = 0; scr_open_game_menu(); }
+        else if ( !any_human_player() ) { menu_pending = 0; spectator_menu(); }
+    }
     clear_selection_state();
     last_sel = 0;
     if ( human && engine_ready && units ) {
@@ -774,7 +812,15 @@ static void map_input( void )
     int deploy = ( st == DSB_STATUS_DEPLOY );
     int cx, cy, mx, my, region;
 
-    if ( !human ) return;
+    if ( !human ) {
+        /* the AI is moving: remember Start and open the menu when it is safe */
+        if ( ( in.pressed & K_START ) && engine_ready && !menu_pending ) {
+            menu_pending = 1;
+            push_msg( any_human_player() ? "Menu opens after the enemy turn" : "Menu opens at the start of the next turn" );
+            ds_mark_all();
+        }
+        return;
+    }
     if ( st != DSB_STATUS_NONE && st != DSB_STATUS_DEPLOY && st != DSB_STATUS_MERGE &&
          st != DSB_STATUS_SPLIT && st != DSB_STATUS_DROP )
         return; /* animations etc. */
@@ -1513,6 +1559,38 @@ void dsui_frame( void )
    Blocking status screen (turn info, scenario end)
    ====================================================================== */
 static const char *status_title = 0, *status_text = 0;
+static const char **status_opts = 0;
+static int status_nopts = 0;
+#define CH_BTN_H 34
+#define CH_BTN_GAP 8
+static int choice_y0( void ) { return ( DS_BOT_H - status_nopts * ( CH_BTN_H + CH_BTN_GAP ) + CH_BTN_GAP ) / 2; }
+
+/* blocking choice: returns the index of the chosen option (B = 0) */
+int dsui_choice_screen( const char *title, const char *text, const char **opts, int n )
+{
+    Uint32 start = SDL_GetTicks();
+    int old_mode = ui_mode, r = -1, i;
+    extern int sdl_quit;
+    status_title = title; status_text = text; status_opts = opts; status_nopts = n;
+    ui_mode = UM_STATUS;
+    ds_mark_all(); ds_present();
+    while ( r < 0 ) {
+        SDL_PumpEvents();
+        ds_read_input();
+        if ( sdl_quit ) { r = 0; break; }
+        if ( SDL_GetTicks() - start > 250 ) {
+            if ( in.pressed & K_B ) r = 0;
+            if ( in.tap )
+                for ( i = 0; i < n; i++ )
+                    if ( ds_hit( in.tap_x, in.tap_y, 40, choice_y0() + i * ( CH_BTN_H + CH_BTN_GAP ), DS_BOT_W - 80, CH_BTN_H ) ) r = i;
+        }
+        SDL_Delay( 16 );
+    }
+    ui_mode = old_mode == UM_STATUS ? UM_NONE : old_mode;
+    status_title = status_text = 0; status_opts = 0; status_nopts = 0;
+    ds_mark_all();
+    return r;
+}
 
 void dsui_status_screen( const char *title, const char *text, int timeout_ms )
 {
@@ -1546,6 +1624,13 @@ void ds_status_draw_top( void )
 void ds_status_draw_bottom( void )
 {
     dg_fill( DS_BOT_X, DS_BOT_Y, DS_BOT_W, DS_BOT_H, DC_BG );
+    if ( status_nopts > 0 ) {
+        int i;
+        for ( i = 0; i < status_nopts; i++ )
+            ds_button( DS_BOT_X + 40, DS_BOT_Y + choice_y0() + i * ( CH_BTN_H + CH_BTN_GAP ), DS_BOT_W - 80, CH_BTN_H,
+                       status_opts[i], 1, i == 0 );
+        return;
+    }
     ds_button( DS_BOT_X + 60, DS_BOT_Y + 90, 200, 50, "Continue", 1, 1 );
     dg_text_c( &dsfont_small, DS_BOT_X + DS_BOT_W / 2, DS_BOT_Y + 150, DC_DIM, "Tap or press A" );
 }

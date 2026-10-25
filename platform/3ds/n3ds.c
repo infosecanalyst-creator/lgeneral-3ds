@@ -100,10 +100,11 @@ void n3ds_post_sdl_init( void )
 void n3ds_log_mem( const char *tag )
 {
     struct mallinfo mi = mallinfo();
-    printf( "mem [%s]: heap used %lu KB of %lu KB (%lu KB left)\n", tag,
+    printf( "mem [%s]: heap used %lu KB of %lu KB (%lu KB left), linear free %lu KB\n", tag,
             (unsigned long)( mi.uordblks / 1024 ),
             (unsigned long)( __ctru_heap_size / 1024 ),
-            (unsigned long)( ( __ctru_heap_size - mi.uordblks ) / 1024 ) );
+            (unsigned long)( ( __ctru_heap_size - mi.uordblks ) / 1024 ),
+            (unsigned long)( linearSpaceFree() / 1024 ) );
 }
 
 void n3ds_exit( void )

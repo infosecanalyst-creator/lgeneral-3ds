@@ -296,6 +296,13 @@ int main(int argc, char *argv[])
 #ifdef WITH_SOUND
     /* initiate audio device */
     audio_open();
+#ifdef __3DS__
+    {
+        extern int audio_ok;
+        printf( "sound: %s\n", audio_ok ? "on" : "unavailable" );
+        n3ds_log_mem( "after audio" );
+    }
+#endif
     audio_enable( config.sound_on );
     audio_set_volume( config.sound_volume );
 #endif

@@ -679,6 +679,15 @@ static void scensetup_input( void )
     int r = list_input();
     if ( r == L_BACK || r == L_BTN0 ) { scen_level = 1; scen_build(); ui_mode = UM_SCENLIST; return; }
     if ( r == L_BTN0 - 1 ) {
+        int i, humans = 0;
+        for ( i = 0; i < setup.player_count; i++ ) if ( setup.ctrl[i] == PLAYER_CTRL_HUMAN ) humans++;
+        if ( humans == 0 ) {
+            const char *opts[2] = { "Back to setup", "Watch the computer play" };
+            if ( dsui_choice_screen( "No human player", "Every side is set to CPU, so you would only watch. "
+                                     "Tap a side in the setup list to switch it to Human.", opts, 2 ) == 0 ) {
+                ui_mode = UM_SCENSETUP; ds_mark_all(); return;
+            }
+        }
         clear_paths();
         scr_close();
         dsb_set_status( DSB_STATUS_NONE );
