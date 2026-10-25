@@ -31,7 +31,9 @@
 #  include <config.h>
 #endif
 
+#ifdef ENABLE_NLS
 #include <libintl.h>
+#endif
 
 #ifdef ENABLE_NLS
 /** shorthand for fetching translation of default domain */

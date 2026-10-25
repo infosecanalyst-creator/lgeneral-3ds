@@ -252,6 +252,10 @@ int main(int argc, char *argv[])
 {
     char window_name[32];
 
+#ifdef __3DS__
+    n3ds_init();
+#endif
+
     locale_init(0);
     
     /* set random seed */
@@ -260,13 +264,24 @@ int main(int argc, char *argv[])
     /* check config directory path and load config */
     check_config_dir_name();
     load_config();
+#ifdef __3DS__
+    /* first boot: fixed 640x480 render, scaled to the top screen by SDL */
+    config.width = LG_3DS_WIDTH;
+    config.height = LG_3DS_HEIGHT;
+    config.fullscreen = 1;
+#endif
 
     eval_cmdline(argc, argv);
     print_version();
     
     /* init sdl */
     init_sdl( SDL_INIT_VIDEO | SDL_INIT_TIMER | SDL_INIT_AUDIO );
+#ifdef __3DS__
+    n3ds_post_sdl_init();
+    set_video_mode( config.width, config.height, config.fullscreen );
+#else
     set_video_mode( 800, 600, config.fullscreen );
+#endif
     sprintf( window_name, tr("LGeneral %s"), VERSION );
     SDL_WM_SetCaption( window_name, 0 );
     event_enable_filter();
@@ -297,6 +312,9 @@ int main(int argc, char *argv[])
 
     /* save settings */
     save_config();
+#ifdef __3DS__
+    n3ds_exit();
+#endif
 
     event_disable_filter();
 

@@ -3393,6 +3393,9 @@ static void engine_handle_next_action( int *reinit )
             end_scen = 1;
             break;
         case ACTION_SET_VMODE:
+#ifdef __3DS__
+            break; /* fixed resolution on 3DS */
+#endif
             flags = SDL_SWSURFACE;
             if ( action->full ) flags |= SDL_FULLSCREEN;
             depth = SDL_VideoModeOK( action->w, action->h, 32, flags );
@@ -4425,6 +4428,9 @@ int engine_init()
         }
         else {
             if ( !scen_load( setup.fname ) ) return 0;
+#ifdef __3DS__
+            n3ds_log_mem( setup.fname );
+#endif
             if ( setup.type == SETUP_INIT_SCEN ) {
                 /* player control */
                 list_reset( players );

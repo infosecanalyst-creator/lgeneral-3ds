@@ -24,6 +24,9 @@ General system includes.
 ====================================================================
 */
 #include <SDL.h>
+#ifdef __3DS__
+#include "n3ds.h"
+#endif
 #ifdef WITH_SOUND
     #include <SDL_mixer.h>
     #include "audio.h"

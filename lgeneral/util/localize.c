@@ -224,7 +224,9 @@ void locale_init(const char *lang) {
   fprintf(stderr, "lc: %d, lang: %s\n", lang_code, lang_data[lang_code].str);
 #endif
 
+#ifndef __3DS__
   setlocale(LC_MESSAGES, "");
+#endif
   
   /* for glibc, force the output charset */
   setenv("OUTPUT_CHARSET", lang_data[lang_code].charset, 1);

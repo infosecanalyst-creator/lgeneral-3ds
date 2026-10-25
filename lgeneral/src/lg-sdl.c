@@ -635,6 +635,15 @@ int set_video_mode( int width, int height, int fullscreen )
     if (sdl.screen) SDL_FreeSurface( sdl.screen );
     sdl.screen = 0;
     /* set video mode */
+#ifdef __3DS__
+    /* 3DS: 16bpp surface on the top screen, scaled to fit (SDL_FULLSCREEN = fit) */
+    if ( ( sdl.screen = SDL_SetVideoMode( width, height, 16, SDL_TOPSCR | SDL_FULLSCREEN ) ) == 0 ) {
+        fprintf( stderr, "3DS video mode %ix%i failed: %s\n", width, height, SDL_GetError() );
+        return 1;
+    }
+    printf( "video: %ix%i %ibpp on top screen\n", width, height, sdl.screen->format->BitsPerPixel );
+    return 0;
+#endif
     if ( fullscreen ) flags |= SDL_FULLSCREEN;
     if ( ( depth = SDL_VideoModeOK( width, height, depth, flags ) ) == 0 ) {
         fprintf( stderr, tr("Requested mode %ix%i, Fullscreen: %i unavailable, fallback to 800x600\n"),

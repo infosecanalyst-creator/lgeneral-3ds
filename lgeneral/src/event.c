@@ -63,6 +63,76 @@ static int event_is_key_pressed()
     return 0;
 }
 
+#ifdef __3DS__
+/*
+====================================================================
+3DS buttons -> LGeneral mouse/keys (first-boot mapping).
+Touch is a normal left click (handled by SDL). Buttons:
+  A = left click at pointer   B = right click (unit info / cancel)
+  X = strategic map (o)       Y = end turn (e)
+  L = previous unit (p)       R = next unit (n)
+  Start = Esc (menu)          Select = scenario info (i)
+  D-pad / Circle Pad = scroll map (arrow keys)
+SDL joystick numbering for 3DS: 0 Start,1 A,2 B,3 X,4 Y,5 L,6 R,7 Select,8 ZL,9 ZR
+====================================================================
+*/
+static void n3ds_key( SDLKey sym, int down )
+{
+    SDL_Event e;
+    keystate[sym] = down;
+    if ( !down ) return;
+    memset( &e, 0, sizeof( e ) );
+    e.type = SDL_KEYDOWN;
+    e.key.type = SDL_KEYDOWN;
+    e.key.state = SDL_PRESSED;
+    e.key.keysym.sym = sym;
+    e.key.keysym.unicode = ( sym < 128 ) ? sym : 0;
+    SDL_PushEvent( &e );
+}
+static void n3ds_click( int button, int down )
+{
+    buttonstate[button] = down;
+    if ( down ) buttondown = button; else buttonup = button;
+}
+static int n3ds_filter( const SDL_Event *event )
+{
+    static const SDLKey btn_keys[10] = {
+        SDLK_ESCAPE, 0, 0, SDLK_o, SDLK_e, SDLK_p, SDLK_n, SDLK_i, 0, 0 };
+    static int axis_dir[4];
+    int down, b, dir;
+    switch ( event->type ) {
+        case SDL_JOYBUTTONDOWN:
+        case SDL_JOYBUTTONUP:
+            down = ( event->type == SDL_JOYBUTTONDOWN );
+            b = event->jbutton.button;
+            if ( b == 1 ) n3ds_click( SDL_BUTTON_LEFT, down );
+            else if ( b == 2 ) n3ds_click( SDL_BUTTON_RIGHT, down );
+            else if ( b < 10 && btn_keys[b] ) n3ds_key( btn_keys[b], down );
+            return 0;
+        case SDL_JOYHATMOTION:
+            n3ds_key( SDLK_UP,    ( event->jhat.value & SDL_HAT_UP ) != 0 );
+            n3ds_key( SDLK_DOWN,  ( event->jhat.value & SDL_HAT_DOWN ) != 0 );
+            n3ds_key( SDLK_LEFT,  ( event->jhat.value & SDL_HAT_LEFT ) != 0 );
+            n3ds_key( SDLK_RIGHT, ( event->jhat.value & SDL_HAT_RIGHT ) != 0 );
+            return 0;
+        case SDL_JOYAXISMOTION:
+            if ( event->jaxis.axis > 1 ) return 0; /* C-stick: reserved for zoom */
+            dir = ( event->jaxis.value > 12000 ) ? 1 : ( event->jaxis.value < -12000 ) ? -1 : 0;
+            if ( dir == axis_dir[event->jaxis.axis] ) return 0;
+            axis_dir[event->jaxis.axis] = dir;
+            if ( event->jaxis.axis == 0 ) {
+                n3ds_key( SDLK_LEFT, dir < 0 );
+                n3ds_key( SDLK_RIGHT, dir > 0 );
+            } else {
+                n3ds_key( SDLK_UP, dir < 0 );
+                n3ds_key( SDLK_DOWN, dir > 0 );
+            }
+            return 0;
+    }
+    return 1;
+}
+#endif
+
 /*
 ====================================================================
 Event filter. As long as this is active no KEY or MOUSE events
@@ -71,6 +141,10 @@ will be available by SDL_PollEvent().
 */
 int event_filter( const SDL_Event *event )
 {
+#ifdef __3DS__
+    if ( event->type >= SDL_JOYAXISMOTION && event->type <= SDL_JOYBUTTONUP )
+        return n3ds_filter( event );
+#endif
     switch ( event->type ) {
         case SDL_MOUSEMOTION:
             motion_x = event->motion.x;

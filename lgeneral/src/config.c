@@ -24,6 +24,9 @@
 #include <unistd.h>
 #include "lg-sdl.h"
 #include "config.h"
+#ifdef __3DS__
+#include "n3ds.h"
+#endif
 #include "parser.h"
 #include "localize.h"
 
@@ -36,6 +39,8 @@ void check_config_dir_name()
 #ifndef INSTALLDIR
     /* if no installation store config to current directory not home */
     sprintf( config.dir_name, "." );
+#elif defined(__3DS__)
+    sprintf( config.dir_name, "%s", LG_3DS_ROOT "/config" );
 #else    
     sprintf( config.dir_name, "%s/.lgames", getenv( "HOME" ) );
 #endif    

@@ -1,0 +1,6 @@
+build/
+build-desktop/
+lgeneral-desktop
+lgeneral.3dsx
+build.log
+.ftp-uploaded-*
