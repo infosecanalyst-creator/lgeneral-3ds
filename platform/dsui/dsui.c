@@ -30,7 +30,14 @@ extern SDL_Surface *nation_flags;
 extern int nation_flag_width, nation_flag_height;
 
 /* ---------------- view ---------------- */
-static int zoom = 2;            /* 2 = 50% (whole canvas view 640x480), 1 = 100% */
+/* zoom levels: canvas pixels per screen pixel = ZN/ZD.  0 = 50%, 1 = 75%, 2 = 100% */
+static const int zn_tab[3] = { 2, 4, 1 }, zd_tab[3] = { 1, 3, 1 }, zpct_tab[3] = { 50, 75, 100 };
+int ds_zoom_level = 1;
+#define ZN ( zn_tab[ds_zoom_level] )
+#define ZD ( zd_tab[ds_zoom_level] )
+#define B2C( v ) ( (v) * ZN / ZD )              /* screen length -> canvas length */
+static int ds_fdiv( int a, int b ) { return a >= 0 ? a / b : -( ( -a + b - 1 ) / b ); }
+#define C2B( v ) ds_fdiv( (v) * ZD, ZN )            /* canvas length -> screen length (floor) */
 static int vx, vy;              /* view origin in canvas pixels */
 static int seen_map_x = -9999, seen_map_y = -9999;
 
@@ -63,7 +70,7 @@ static DSColor *mm_col = 0;
 static int mm_w = 0, mm_h = 0, mm_weather = -1;
 static void *mm_map = 0;
 
-static void view_size( int *w, int *h ) { *w = DS_BOT_W * zoom; *h = DS_BOT_H * zoom; }
+static void view_size( int *w, int *h ) { *w = B2C( DS_BOT_W ); *h = B2C( DS_BOT_H ); }
 
 int ds_hit( int px, int py, int x, int y, int w, int h )
 {
@@ -96,9 +103,9 @@ SDL_Surface *dsui_video_init( void )
     if ( !ds_canvas ) return 0;
     SDL_FillRect( ds_canvas, 0, 0 );
     SDL_FillRect( ds_screen, 0, 0 );
-    vx = ( DS_CANVAS_W - DS_BOT_W * zoom ) / 2;
-    vy = ( DS_CANVAS_H - DS_BOT_H * zoom ) / 2;
     dsui_options_load();
+    vx = ( DS_CANVAS_W - B2C( DS_BOT_W ) ) / 2;
+    vy = ( DS_CANVAS_H - B2C( DS_BOT_H ) ) / 2;
     printf( "dsui: screen %dx%d %dbpp, canvas %dx%d\n", ds_screen->w, ds_screen->h,
             f->BitsPerPixel, DS_CANVAS_W, DS_CANVAS_H );
     return ds_canvas;
@@ -241,7 +248,7 @@ static void sync_view( void )
 /* move view by canvas pixels; scroll the engine map when leaving the canvas */
 static void pan_view( int dx, int dy )
 {
-    int vw, vh, guard = 8, lm = VIEW_LM * zoom, rm = VIEW_RM * zoom;
+    int vw, vh, guard = 8, lm = B2C( VIEW_LM ), rm = B2C( VIEW_RM );
     int at_left = 0, at_right = 0;
     view_size( &vw, &vh );
     vx += dx; vy += dy;
@@ -276,10 +283,12 @@ static void pan_view( int dx, int dy )
 static void set_zoom( int z )
 {
     int vw, vh, cx, cy;
-    if ( z == zoom ) return;
+    if ( z < 0 ) z = 0;
+    if ( z > 2 ) z = 2;
+    if ( z == ds_zoom_level ) return;
     view_size( &vw, &vh );
     cx = vx + vw / 2; cy = vy + vh / 2;
-    zoom = z;
+    ds_zoom_level = z;
     view_size( &vw, &vh );
     vx = cx - vw / 2; vy = cy - vh / 2;
     pan_view( 0, 0 );
@@ -288,7 +297,7 @@ static void set_zoom( int z )
 /* bottom-screen (0..319) to canvas */
 static void bot_to_canvas( int bx, int by, int *cx, int *cy )
 {
-    *cx = vx + bx * zoom; *cy = vy + by * zoom;
+    *cx = vx + B2C( bx ); *cy = vy + B2C( by );
 }
 
 /* hex -> bottom-screen top-left (absolute screen coordinates); 0 if not on canvas */
@@ -297,8 +306,8 @@ static int hex_to_bot( int mx, int my, int *bx, int *by )
     int sx, sy;
     if ( mx < 0 || my < 0 || mx >= map_w || my >= map_h ) return 0;
     if ( !dsb_screen_pos( mx, my, &sx, &sy ) ) return 0;
-    *bx = DS_BOT_X + ( sx - vx ) / zoom;
-    *by = DS_BOT_Y + ( sy - vy ) / zoom;
+    *bx = DS_BOT_X + C2B( sx - vx );
+    *by = DS_BOT_Y + C2B( sy - vy );
     return 1;
 }
 
@@ -320,16 +329,16 @@ void ds_center_on( int mx, int my )
 /* keep the cursor hex inside the view */
 static void ensure_visible( int mx, int my )
 {
-    int bx, by, hw = hex_w / zoom, hh = hex_h / zoom, guard = 6;
+    int bx, by, hw = C2B( hex_w ), hh = C2B( hex_h ), guard = 6;
     while ( guard-- ) {
         int dx = 0, dy = 0;
         if ( !hex_to_bot( mx, my, &bx, &by ) ) { ds_center_on( mx, my ); return; }
         bx -= DS_BOT_X; by -= DS_BOT_Y;
         int lm = ( dsb_status() == DSB_STATUS_DEPLOY ) ? VIEW_LM + 4 : 4;
-        if ( bx < lm ) dx = ( bx - lm - 26 ) * zoom;
-        else if ( bx + hw > DS_BOT_W - 44 ) dx = ( bx + hw - ( DS_BOT_W - 74 ) ) * zoom;
-        if ( by < 4 ) dy = ( by - 30 ) * zoom;
-        else if ( by + hh > DS_BOT_H - 4 ) dy = ( by + hh - ( DS_BOT_H - 34 ) ) * zoom;
+        if ( bx < lm ) dx = B2C( bx - lm - 26 );
+        else if ( bx + hw > DS_BOT_W - 44 ) dx = B2C( bx + hw - ( DS_BOT_W - 74 ) );
+        if ( by < 4 ) dy = B2C( by - 30 );
+        else if ( by + hh > DS_BOT_H - 4 ) dy = B2C( by + hh - ( DS_BOT_H - 34 ) );
         if ( !dx && !dy ) return;
         pan_view( dx, dy );
     }
@@ -828,10 +837,10 @@ static void map_input( void )
     /* --- buttons --- */
     if ( in.pressed & K_START ) { scr_open_game_menu(); return; }
     if ( ( in.pressed & K_SELECT ) && !deploy ) { scr_open_overview(); return; }
-    if ( in.pressed & K_ZL ) set_zoom( 2 );
-    if ( in.pressed & K_ZR ) set_zoom( 1 );
+    if ( in.pressed & K_ZL ) { set_zoom( ds_zoom_level - 1 ); dsui_options_save(); }
+    if ( in.pressed & K_ZR ) { set_zoom( ds_zoom_level + 1 ); dsui_options_save(); }
     if ( in.held & ( K_CUP | K_CDOWN | K_CLEFT | K_CRIGHT ) ) {
-        int s = 6 * zoom;
+        int s = B2C( 6 );
         pan_view( ( in.held & K_CLEFT ) ? -s : ( in.held & K_CRIGHT ) ? s : 0,
                   ( in.held & K_CUP ) ? -s : ( in.held & K_CDOWN ) ? s : 0 );
     }
@@ -881,7 +890,7 @@ static void map_input( void )
         }
         else {
             panning = 1;
-            if ( in.drag_dx || in.drag_dy ) pan_view( -in.drag_dx * zoom, -in.drag_dy * zoom );
+            if ( in.drag_dx || in.drag_dy ) pan_view( -B2C( in.drag_dx ), -B2C( in.drag_dy ) );
         }
     }
     if ( in.up && in.drag && drag_unit ) {
@@ -970,7 +979,37 @@ static void hex_overlay( int mx, int my, DSColor c, int alpha, DSColor oc, int o
 {
     int bx, by;
     if ( !hex_mask || !hex_to_bot( mx, my, &bx, &by ) ) return;
-    dg_mask_tint( bx, by, hex_w / zoom, hex_h / zoom, hex_mask, hex_w, hex_h, zoom, c, alpha, oc, outline );
+    dg_mask_tint( bx, by, C2B( hex_w ), C2B( hex_h ), hex_mask, hex_w, hex_h, ZN, ZD, c, alpha, oc, outline );
+}
+
+#define DC_SIDE_FRIEND 0x2f6fd6
+#define DC_SIDE_ENEMY  0xd2352a
+/* side-coloured hex edge plus a strength badge (ground: bottom of the hex, air: top) */
+static void unit_badge( Unit *u, int mx, int my, int air )
+{
+    int bx, by, hw = C2B( hex_w ), hh = C2B( hex_h ), w, h, tx, ty, ally;
+    char t[8];
+    DSColor side, txt = 0xffffff;
+    if ( u->killed ) return;
+    ally = cur_player ? player_is_ally( cur_player, u->player ) : 0;
+    if ( !ally && !mask[mx][my].spot ) return;
+    if ( !hex_to_bot( mx, my, &bx, &by ) ) return;
+    side = ally ? DC_SIDE_FRIEND : DC_SIDE_ENEMY;
+    if ( !air || !map[mx][my].g_unit ) hex_overlay( mx, my, side, 70, side, 1 );
+    if ( ally && ( unit_low_ammo( u ) || unit_low_fuel( u ) ) ) txt = 0xffd040;
+    snprintf( t, sizeof t, "%d", u->str );
+    {
+        const DSFont *f = ( ds_zoom_level == 0 ) ? &dsfont_small : &dsfont_bold;
+        int fh = ( ds_zoom_level == 0 ) ? 10 : 12;
+        w = dg_text_w( f, t ) + 4; h = fh + 1;
+        if ( w < h ) w = h;
+        tx = bx + ( hw - w ) / 2;
+        ty = air ? by + 1 : by + hh - h + 2;   /* hangs slightly below the hex so the unit art stays visible */
+        dg_fill( tx - 1, ty - 1, w + 2, h + 2, 0x000000 );
+        dg_fill( tx, ty, w, h, side );
+        if ( air ) dg_fill( tx, ty, w, 2, 0xffffff );   /* white cap marks an air unit */
+        dg_text_c( f, tx + w / 2, ty + ( h - fh ) / 2 - ( ds_zoom_level == 0 ? 2 : 1 ), txt, t );
+    }
 }
 
 static void draw_map_overlays( void )
@@ -999,6 +1038,14 @@ static void draw_map_overlays( void )
                 else if ( v & 2 ) hex_overlay( x, y, DC_WARN, 55, 0, 0 );
             }
     }
+    /* unit badges: side colour + strength in a readable font */
+    if ( config.show_bar ) {
+        for ( x = mx0; x <= mx1; x++ )
+            for ( y = my0; y <= my1; y++ ) {
+                if ( map[x][y].g_unit ) unit_badge( map[x][y].g_unit, x, y, 0 );
+                if ( map[x][y].a_unit ) unit_badge( map[x][y].a_unit, x, y, 1 );
+            }
+    }
     /* ready dots */
     if ( human && st == DSB_STATUS_NONE && units ) {
         list_reset( units );
@@ -1008,9 +1055,9 @@ static void draw_map_overlays( void )
             if ( u->x < mx0 || u->x > mx1 || u->y < my0 || u->y > my1 ) continue;
             if ( !hex_to_bot( u->x, u->y, &bx, &by ) ) continue;
             {
-                int dx = bx + ( hex_w / zoom ) * 3 / 4, dy = by + ( hex_h / zoom ) / 5;
-                dg_dot( dx, dy, zoom == 2 ? 2 : 3, 0x000000 );
-                dg_dot( dx, dy, zoom == 2 ? 1 : 2, u->cur_mov > 0 ? DC_GOOD : DC_ACCENT );
+                int dx = bx + C2B( hex_w ) * 3 / 4, dy = by + C2B( hex_h ) / 5;
+                dg_dot( dx, dy, ds_zoom_level == 0 ? 3 : 4, 0x000000 );
+                dg_dot( dx, dy, ds_zoom_level == 0 ? 2 : 3, u->cur_mov > 0 ? DC_GOOD : DC_ACCENT );
             }
         }
     }
@@ -1088,10 +1135,20 @@ static void draw_bottom_map( void )
     {
         /* the view may extend past the canvas edge (map border margins) */
         int sx = vx, w = DS_BOT_W, dx = DS_BOT_X;
-        if ( sx < 0 ) { int cut = ( -sx + zoom - 1 ) / zoom; dg_fill( dx, DS_BOT_Y, cut, DS_BOT_H, DC_BG ); dx += cut; w -= cut; sx += cut * zoom; }
-        if ( sx + w * zoom > DS_CANVAS_W ) { int cut = ( sx + w * zoom - DS_CANVAS_W + zoom - 1 ) / zoom; w -= cut; dg_fill( dx + w, DS_BOT_Y, cut, DS_BOT_H, DC_BG ); }
+        if ( sx < 0 ) {
+            /* whole filter blocks (ZD screen pixels = ZN canvas pixels) keep the 75% filter aligned */
+            int cut = ( ( -sx * ZD + ZN - 1 ) / ZN + ZD - 1 ) / ZD * ZD;
+            if ( cut > w ) cut = w;
+            dg_fill( dx, DS_BOT_Y, cut, DS_BOT_H, DC_BG ); dx += cut; w -= cut; sx += cut * ZN / ZD;
+        }
+        if ( w > 0 && sx + B2C( w ) > DS_CANVAS_W ) {
+            int fit = ( DS_CANVAS_W - sx ) * ZD / ZN;
+            if ( fit < 0 ) fit = 0;
+            dg_fill( dx + fit, DS_BOT_Y, w - fit, DS_BOT_H, DC_BG ); w = fit;
+        }
         if ( w > 0 ) {
-            if ( zoom == 2 ) dg_downscale2( ds_canvas, sx, vy, w, DS_BOT_H, dx, DS_BOT_Y );
+            if ( ds_zoom_level == 0 ) dg_downscale2( ds_canvas, sx, vy, w, DS_BOT_H, dx, DS_BOT_Y );
+            else if ( ds_zoom_level == 1 ) dg_downscale43( ds_canvas, sx, vy, w, DS_BOT_H, dx, DS_BOT_Y );
             else dg_copy( ds_canvas, sx, vy, w, DS_BOT_H, dx, DS_BOT_Y );
         }
     }
@@ -1440,7 +1497,7 @@ static void objectives_box( int x, int y, int w, int h )
     dg_text( &dsfont_bold, x, y, DC_ACCENT, t );
     snprintf( t, sizeof t, "Ready units: %d", cur_player && !dsb_cpu_turn() ? ds_ready_units() : 0 );
     dg_text( &dsfont_small, x, y + 16, DC_DIM, t );
-    snprintf( t, sizeof t, "Zoom %d%%", zoom == 2 ? 50 : 100 );
+    snprintf( t, sizeof t, "Zoom %d%%", zpct_tab[ds_zoom_level] );
     dg_text( &dsfont_small, x, y + 28, DC_DIM, t );
 }
 
@@ -1503,7 +1560,7 @@ static unsigned state_sig( void )
 #define MIX( v ) s = ( s ^ (unsigned)( v ) ) * 16777619u
     MIX( (size_t)cur_unit ); MIX( (size_t)cur_player ); MIX( dsb_status() ); MIX( turn );
     MIX( ui_mode ); MIX( cur_mx ); MIX( cur_my ); MIX( cursor_on ); MIX( (size_t)fc_target ); MIX( fc_strat );
-    MIX( (size_t)detail_unit ); MIX( (size_t)inspect_unit ); MIX( reach_on ); MIX( zoom ); MIX( map_x ); MIX( map_y );
+    MIX( (size_t)detail_unit ); MIX( (size_t)inspect_unit ); MIX( reach_on ); MIX( ds_zoom_level ); MIX( map_x ); MIX( map_y );
     MIX( vx / 16 ); MIX( vy / 16 ); MIX( msg_count ); MIX( (size_t)deploy_unit ); MIX( cur_weather );
     if ( cur_unit ) { MIX( cur_unit->str ); MIX( cur_unit->cur_mov ); MIX( cur_unit->cur_atk_count );
                       MIX( cur_unit->cur_fuel ); MIX( cur_unit->cur_ammo ); MIX( cur_unit->x ); MIX( cur_unit->y ); }

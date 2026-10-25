@@ -1018,7 +1018,11 @@ void map_draw_units( SDL_Surface *surf, int map_x, int map_y, int x, int y, int 
             }
         }
         /* unit info icons */
+#ifdef DSUI
+        if ( 0 ) { /* the dual-screen UI draws its own readable unit badges */
+#else
         if ( unit && config.show_bar ) {
+#endif
             /* strength */
             DEST( surf,
                   x + ( ( hex_w - unit_info_icons->str_w ) >> 1 ),

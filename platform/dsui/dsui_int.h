@@ -41,6 +41,7 @@ enum {
     UM_OVERVIEW, UM_CAMPBRIEF, UM_STATUS
 };
 extern int ui_mode;
+extern int ds_zoom_level;   /* 0 = 50%, 1 = 75%, 2 = 100% */
 
 /* shared state (dsui.c) */
 extern SDL_Surface *ds_screen, *ds_canvas;

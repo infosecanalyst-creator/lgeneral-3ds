@@ -370,30 +370,73 @@ void dg_downscale2( SDL_Surface *src, int sx, int sy, int w, int h, int dx, int 
         }
 }
 
-void dg_mask_tint( int x, int y, int w, int h, const int *mask, int mw, int mh, int step,
+void dg_mask_tint( int x, int y, int w, int h, const int *mask, int mw, int mh, int zn, int zd,
                    DSColor c, int alpha, DSColor oc, int outline )
 {
     int i, j;
     int r = ( c >> 16 ) & 255, g = ( c >> 8 ) & 255, b = c & 255;
     Uint32 osolid;
-    if ( !T || !mask ) return;
+#define MS( ii, jj ) ( (ii) >= 0 && (jj) >= 0 && (ii) * zn / zd < mw && (jj) * zn / zd < mh && \
+                      mask[( (jj) * zn / zd ) * mw + (ii) * zn / zd] )
+    if ( !T || !mask || zd <= 0 ) return;
     osolid = mapc( T->format, oc );
     for ( j = 0; j < h; j++ ) {
-        int py = y + j, my = j * step;
-        if ( py < cy0 || py >= cy1 || my >= mh ) continue;
+        int py = y + j;
+        if ( py < cy0 || py >= cy1 || j * zn / zd >= mh ) continue;
         for ( i = 0; i < w; i++ ) {
-            int px = x + i, mxx = i * step;
-            if ( px < cx0 || px >= cx1 || mxx >= mw ) continue;
-            if ( !mask[my * mw + mxx] ) continue;
+            int px = x + i;
+            if ( px < cx0 || px >= cx1 ) continue;
+            if ( !MS( i, j ) ) continue;
             if ( outline ) {
                 int edge = ( i == 0 || j == 0 || i == w - 1 || j == h - 1 ||
-                             ( mxx - step < 0 ) || !mask[my * mw + mxx - step] ||
-                             ( mxx + step >= mw ) || !mask[my * mw + mxx + step] ||
-                             ( my - step < 0 ) || !mask[( my - step ) * mw + mxx] ||
-                             ( my + step >= mh ) || !mask[( my + step ) * mw + mxx] );
+                             !MS( i - 1, j ) || !MS( i + 1, j ) || !MS( i, j - 1 ) || !MS( i, j + 1 ) );
                 if ( edge ) { putp( T, px, py, osolid ); continue; }
             }
             if ( alpha > 0 ) blendp( T, px, py, r, g, b, alpha );
+        }
+    }
+#undef MS
+}
+
+/* 75% view: every 4x4 source block becomes 3x3 (area weights 3:1, 2:2, 1:3 per axis) */
+static const int w43a[3] = { 3, 2, 1 }, w43o[3] = { 0, 1, 2 };
+void dg_downscale43( SDL_Surface *src, int sx, int sy, int w, int h, int dx, int dy )
+{
+    int i, j;
+    if ( !T || !src || w <= 0 || h <= 0 ) return;
+    if ( dx < 0 || dy < 0 || sx < 0 || sy < 0 ) return;   /* caller clips */
+    if ( dx + w > T->w ) w = T->w - dx;
+    if ( dy + h > T->h ) h = T->h - dy;
+    for ( j = 0; j < h; j++ ) {
+        int py = dy + j;
+        int ry = sy + ( j / 3 ) * 4 + w43o[j % 3], wy0 = w43a[j % 3], wy1 = 4 - wy0;
+        int ry1 = ry + 1;
+        if ( py < cy0 || py >= cy1 ) continue;
+        if ( ry >= src->h ) ry = src->h - 1;
+        if ( ry1 >= src->h ) ry1 = src->h - 1;
+        if ( src->format->BytesPerPixel == 2 && T->format->BytesPerPixel == 2 ) {
+            Uint16 *a = (Uint16*)( (Uint8*)src->pixels + ry * src->pitch );
+            Uint16 *b = (Uint16*)( (Uint8*)src->pixels + ry1 * src->pitch );
+            Uint16 *d = (Uint16*)( (Uint8*)T->pixels + py * T->pitch ) + dx;
+            for ( i = 0; i < w; i++ ) {
+                int rx = sx + ( i / 3 ) * 4 + w43o[i % 3], rx1 = rx + 1, wx0 = w43a[i % 3], wx1 = 4 - wx0;
+                Uint32 p0, p1, p2, p3, w0, w1, w2, w3, rr, gg, bb;
+                if ( rx >= src->w ) rx = src->w - 1;
+                if ( rx1 >= src->w ) rx1 = src->w - 1;
+                p0 = a[rx]; p1 = a[rx1]; p2 = b[rx]; p3 = b[rx1];
+                w0 = wx0 * wy0; w1 = wx1 * wy0; w2 = wx0 * wy1; w3 = wx1 * wy1;   /* sum 16 */
+                rr = ( ( p0 >> 11 ) * w0 + ( p1 >> 11 ) * w1 + ( p2 >> 11 ) * w2 + ( p3 >> 11 ) * w3 ) >> 4;
+                gg = ( ( ( p0 >> 5 ) & 63 ) * w0 + ( ( p1 >> 5 ) & 63 ) * w1 + ( ( p2 >> 5 ) & 63 ) * w2 + ( ( p3 >> 5 ) & 63 ) * w3 ) >> 4;
+                bb = ( ( p0 & 31 ) * w0 + ( p1 & 31 ) * w1 + ( p2 & 31 ) * w2 + ( p3 & 31 ) * w3 ) >> 4;
+                d[i] = (Uint16)( ( rr << 11 ) | ( gg << 5 ) | bb );
+            }
+        }
+        else {
+            for ( i = 0; i < w; i++ ) {
+                int rx = sx + ( i / 3 ) * 4 + w43o[i % 3];
+                if ( rx >= src->w ) rx = src->w - 1;
+                putp( T, dx + i, py, getp( src, rx, ry ) );
+            }
         }
     }
 }

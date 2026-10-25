@@ -182,10 +182,10 @@ void dsui_options_load( void )
     FILE *f;
     snprintf( path, sizeof path, "%s/dsui.conf", config.dir_name );
     if ( ( f = fopen( path, "r" ) ) ) {
-        int a = 0, b = 1;
-        if ( fscanf( f, "quick_attack=%d auto_advance=%d", &a, &b ) == 2 ) {
-            dsui_quick_attack = a; dsui_auto_advance = b;
-        }
+        int a = 0, b = 1, z = 1;
+        int n = fscanf( f, "quick_attack=%d auto_advance=%d zoom=%d", &a, &b, &z );
+        if ( n >= 2 ) { dsui_quick_attack = a; dsui_auto_advance = b; }
+        if ( n >= 3 && z >= 0 && z <= 2 ) ds_zoom_level = z;
         fclose( f );
     }
 }
@@ -195,7 +195,7 @@ void dsui_options_save( void )
     FILE *f;
     snprintf( path, sizeof path, "%s/dsui.conf", config.dir_name );
     if ( ( f = fopen( path, "w" ) ) ) {
-        fprintf( f, "quick_attack=%d auto_advance=%d\n", dsui_quick_attack, dsui_auto_advance );
+        fprintf( f, "quick_attack=%d auto_advance=%d zoom=%d\n", dsui_quick_attack, dsui_auto_advance, ds_zoom_level );
         fclose( f );
     }
 }
@@ -206,7 +206,7 @@ static void build_options( void )
     lst_init( "Options", 0 );
     lst_add( "Attack needs a forecast tap first", dsui_quick_attack ? "Off" : "On", 1, 1 );
     lst_add( "Auto-select the next ready unit", dsui_auto_advance ? "On" : "Off", 2, 1 );
-    lst_add( "Strength numbers on units", config.show_bar ? "On" : "Off", 3, 1 );
+    lst_add( "Unit badges (side + strength)", config.show_bar ? "On" : "Off", 3, 1 );
     lst_add( "Hex grid", config.grid ? "On" : "Off", 4, 1 );
     lst_add( "Watch the enemy turn", config.show_cpu_turn ? "On" : "Off", 5, 1 );
     {
@@ -371,7 +371,7 @@ static const char *help_text =
     "BUTTONS#"
     "Circle Pad / D-pad: move the hex cursor.  A: act on the cursor hex.  B: cancel / deselect.#"
     "X: undo the last move.  Y: end turn.  R: next unit with orders.  Hold L: all enemy threat.#"
-    "ZL / ZR: zoom out / in.  C-stick: pan.  Start: menu.  Select: overview map.##"
+    "ZL / ZR: zoom out / in (50%, 75%, 100%).  C-stick: pan.  Start: menu.  Select: overview map.##"
     "MARKERS#"
     "Green dot: unit can still move.  Amber dot: unit can still attack.#"
     "Hexes outside a selected unit's reach are darkened.##"
@@ -1290,7 +1290,7 @@ void scr_draw_top( void )
             top_text_panel( "Options", "Forecast tap: when on, the first tap on an enemy shows the battle forecast "
                             "and the second tap attacks. Off attacks on the first tap.#"
                             "Auto-select: after a unit has moved and attacked, the next unit with orders is selected.#"
-                            "Strength numbers: show unit strength on the map.#"
+                            "Unit badges: blue = yours, red = enemy, with strength. White top edge = aircraft; yellow number = low ammo or fuel.#"
                             "Hex grid: outline every hex.#"
                             "Watch the enemy turn: follow CPU moves on the map (off is faster).#"
                             "Animation speed: how fast moves and battles play.", 0 );

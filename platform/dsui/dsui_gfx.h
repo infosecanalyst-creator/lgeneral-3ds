@@ -59,12 +59,13 @@ DSColor dg_getpixel( SDL_Surface *s, int x, int y );
 
 /* tint the pixels where mask[(j*step)*mw + i*step] != 0 inside a w x h box at x,y;
    outline draws only the mask border in 'oc' (alpha 255). alpha 0 = no fill */
-void dg_mask_tint( int x, int y, int w, int h, const int *mask, int mw, int mh, int step,
+void dg_mask_tint( int x, int y, int w, int h, const int *mask, int mw, int mh, int zn, int zd,
                    DSColor c, int alpha, DSColor oc, int outline );
 
 /* presenter helpers: copy (1:1) or 2:1 box-downscale a source rect onto the target at dx,dy.
    w,h are the destination size. */
 void dg_copy( SDL_Surface *src, int sx, int sy, int w, int h, int dx, int dy );
 void dg_downscale2( SDL_Surface *src, int sx, int sy, int w, int h, int dx, int dy );
+void dg_downscale43( SDL_Surface *src, int sx, int sy, int w, int h, int dx, int dy );
 
 #endif
