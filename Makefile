@@ -47,11 +47,12 @@ ifeq ($(DSUI),1)
 CFLAGS += -DDSUI -Iplatform/dsui
 endif
 
-# sound: off for the first boot (make SOUND=1 once 3ds-sdl_mixer is installed)
-SOUND ?= 0
+# sound: on by default (needs 3ds-sdl_mixer; at runtime the DSP firmware, sdmc:/3ds/dspfirm.cdc).
+# Without the firmware the game runs silently. make SOUND=0 builds without SDL_mixer.
+SOUND ?= 1
 ifeq ($(SOUND),1)
 CFLAGS   += -DWITH_SOUND
-MIX_LIBS := -lSDL_mixer -lvorbisidec -logg -lmikmod
+MIX_LIBS := -lSDL_mixer -lmikmod -lmad -lvorbisidec -logg
 endif
 
 LDFLAGS := -specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(BUILD)/$(TARGET).map -Wl,--gc-sections

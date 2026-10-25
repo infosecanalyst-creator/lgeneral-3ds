@@ -13,7 +13,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install SDL 1.2 for 3DS
-        run: dkp-pacman -Sy --noconfirm --needed 3ds-sdl
+        run: |
+          dkp-pacman -Sy --noconfirm --needed 3ds-sdl 3ds-sdl_mixer
+          dkp-pacman -Qi 3ds-sdl_mixer | grep -i depends || true
+          ls $DEVKITPRO/portlibs/3ds/lib | grep -E 'mikmod|mad|vorbis|ogg|mixer|modplug|flac' || true
 
       - name: Build lgeneral.3dsx
         run: make -j"$(nproc)"

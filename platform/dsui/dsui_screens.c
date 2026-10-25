@@ -13,6 +13,10 @@
 
 #include "dsui_int.h"
 #include <strings.h>
+#ifdef WITH_SOUND
+#include "audio.h"
+extern int audio_ok;
+#endif
 #include "file.h"
 
 extern void ds_draw_bottom_map( void );
@@ -209,6 +213,13 @@ static void build_options( void )
         char t[16]; snprintf( t, sizeof t, "x%d", config.anim_speed );
         lst_add( "Animation speed", t, 6, 1 );
     }
+#ifdef WITH_SOUND
+    lst_add( "Sound effects", !audio_ok ? "Unavailable" : config.sound_on ? "On" : "Off", 7, audio_ok );
+    {
+        char t[16]; snprintf( t, sizeof t, "%d%%", config.sound_volume * 100 / 128 );
+        lst_add( "Volume", t, 8, audio_ok && config.sound_on );
+    }
+#endif
     lst_buttons( "Back", 0, 0 );
     sel = keep; list_clamp();
 }
@@ -231,8 +242,17 @@ static void options_input( void )
         case 4: config.grid = !config.grid; dsb_redraw(); break;
         case 5: config.show_cpu_turn = !config.show_cpu_turn; break;
         case 6: config.anim_speed = config.anim_speed >= 4 ? 1 : config.anim_speed + 1; break;
+#ifdef WITH_SOUND
+        case 7: config.sound_on = !config.sound_on; audio_enable( config.sound_on ); break;
+        case 8:
+            config.sound_volume = config.sound_volume >= 128 ? 32 : config.sound_volume + 32;
+            if ( config.sound_volume > 128 ) config.sound_volume = 128;
+            audio_set_volume( config.sound_volume );
+            break;
+#endif
         case L_BACK: case L_BTN0:
             dsui_options_save();
+            save_config();
             if ( return_mode == UM_TITLE ) scr_open_title();
             else if ( return_mode == UM_MENU ) scr_open_game_menu();
             else scr_close();

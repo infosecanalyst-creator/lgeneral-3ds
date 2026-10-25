@@ -52,7 +52,12 @@ Initiate/close audio
 */
 int audio_open()
 {
+#ifdef __3DS__
+    /* 3DS: needs the DSP firmware (sdmc:/3ds/dspfirm.cdc); larger buffer avoids crackle */
+    if ( !SDL_WasInit( SDL_INIT_AUDIO ) || Mix_OpenAudio( 22050, MIX_DEFAULT_FORMAT, 2, 1024 ) < 0 ) {
+#else
     if ( Mix_OpenAudio( MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, MIX_DEFAULT_CHANNELS, 256 ) < 0 ) {
+#endif
         fprintf( stderr, "%s\n", SDL_GetError() );
         audio_ok = 0;
         return 0;

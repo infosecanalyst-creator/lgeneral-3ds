@@ -536,10 +536,13 @@ void init_sdl( int f )
 #endif
 
     sdl.screen = 0;
-    if (SDL_Init(f) < 0) {
+    /* audio is optional: a missing sound device (e.g. no DSP firmware on 3DS) must not stop the game */
+    if (SDL_Init(f & ~SDL_INIT_AUDIO) < 0) {
         fprintf(stderr, "ERR: sdl_init: %s", SDL_GetError());
         exit(1);
     }
+    if ( ( f & SDL_INIT_AUDIO ) && SDL_InitSubSystem( SDL_INIT_AUDIO ) < 0 )
+        fprintf( stderr, "sound disabled: %s\n", SDL_GetError() );
     SDL_EnableUNICODE(1);
     atexit(quit_sdl);
     /* create empty cursor */

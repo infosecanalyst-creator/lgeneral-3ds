@@ -377,8 +377,14 @@ void dsui_engine_reset( void )
     engine_ready = 0;
 }
 
+#if !defined(__3DS__) && defined(__GLIBC__)
+#include <malloc.h>
+#endif
 void dsui_scenario_loaded( void )
 {
+#if !defined(__3DS__) && defined(__GLIBC__)
+    { struct mallinfo2 mi = mallinfo2(); printf( "dsui: heap in use %.1f MB\n", ( mi.uordblks + mi.hblkhd ) / 1048576.0 ); }
+#endif
     engine_ready = ( setup.type != SETUP_RUN_TITLE && setup.type != SETUP_CAMP_BRIEFING && map && hex_w > 0 );
     clear_selection_state();
     seen_sel = 0;
