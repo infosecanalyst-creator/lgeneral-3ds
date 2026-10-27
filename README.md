@@ -34,6 +34,12 @@ Needs `3ds-sdl` and `3ds-sdl_mixer` from portlibs (`SOUND=0` builds without soun
 1. First time (data, ~24 MB): start **ftpd** on the 3DS, then `bash deploy-lgeneral.sh <3DS-IP> ftp`
 2. Each new build: open the Homebrew Launcher, press **Y**, then `bash deploy-lgeneral.sh <3DS-IP>`
 
+## Manual
+
+The in-game manual (title screen or Start > Manual) is compiled from `docs/manual.txt`;
+after editing it run `python3 tools/gen_manual.py`. The same text is installed as
+`sdmc:/3ds/lgeneral/MANUAL.txt`.
+
 ## Controls
 
 | Input | Action |

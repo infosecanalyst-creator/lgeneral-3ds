@@ -1,0 +1,125 @@
+== LGENERAL 3DS MANUAL
+Panzer General-style turn-based strategy, World War II and World War I, played with the stylus.
+
+Using this manual:
+Tap a chapter on the touch screen to jump to it.
+< Prev / Next >, or the D-pad left / right = page.
+L / R = previous / next chapter.   B = close.
+
+Open it any time from the title screen or Start > Manual.
+== 1. STARTING A GAME  (1/2)
+The title screen:
+Continue - resumes the autosave made at the start of your last turn.
+New scenario - pick a set (Panzer General 1939-45 or K.u.k General WWI), then a battle. The top screen shows its briefing.
+New campaign - a chain of battles; your core units carry over and results decide the next battle.
+Load game - one of the ten save slots.
+== 1. STARTING A GAME  (2/2)
+Scenario setup, before you press Start:
+Each side - tap to switch Human / CPU. Keep at least one side Human (you get a warning if not).
+Fog of war - enemies are hidden until spotted.
+Supply, Weather - realistic rules; leave on.
+Deployment turn - place your units before turn 1.
+Purchase - buy units with prestige.
+== 2. THE TWO SCREENS
+BOTTOM (touch): the battle map. You play everything here with the stylus.
+TOP: your dashboard.
+- status bar: turn, weather, side, prestige
+- the selected unit's card
+- the battle forecast before an attack
+- the hex or enemy under your cursor
+- messages and combat results
+- minimap (white box = what you see) and objectives
+== 3. STYLUS CONTROLS
+Tap your unit - select it.
+Tap a bright hex - move there.
+Drag a unit - move it in one motion.
+Tap an enemy - battle forecast on top; tap it again to attack.
+Drag the empty map - pan.
+Hold on any unit - full statistics.
+Tap the selected unit - switch between the air and ground unit on that hex, or deselect.
+Tap an enemy with nothing selected - where it can move (red) and attack (orange).
+== 4. BUTTONS
+Circle Pad / D-pad - move the hex cursor;  A - act on it.
+B - cancel, deselect, back.    X - undo the last move.
+Y - end turn (warns if units can still act).
+R - next unit that still has orders.
+Hold L - every enemy's threat range.
+ZL / ZR - zoom out / in (50%, 75%, 100%).
+C-stick - pan.   Start - menu.   Select - overview map.
+== 5. READING THE MAP  (1/2)
+BLUE hex edge and number = your units (and allies).
+RED hex edge and number  = enemy units you can see.
+The number is the unit's strength (10 = full).
+White top edge on a badge = an aircraft.
+Yellow number = that unit is low on ammo or fuel.
+Thick GOLD ring = the selected unit.
+== 5. READING THE MAP  (2/2)
+Green dot = unit can still move.
+Amber dot = it has moved but can still attack.
+No dot = finished for this turn.
+With a unit selected, hexes it can reach stay bright; everything else is darkened.
+Red tint = enemy can move there; orange = it can attack there (tap enemy, or hold L).
+== 6. MOVING AND ATTACKING  (1/2)
+Moving next to an enemy ends your movement for the turn (zone of control), so plan the last step.
+Attack from a hex next to the enemy (artillery, ships and bombers reach further).
+The first tap on an enemy shows the FORECAST: the expected losses for both sides. Tap again to attack, or tap elsewhere to cancel.
+A unit can usually move then attack, or attack then stay put.
+== 6. MOVING AND ATTACKING  (2/2)
+Units that do not move dig in (entrenchment); dug-in units in towns, forests and hills are very hard to dislodge.
+Your artillery, anti-tank and anti-air guns fire in support when an adjacent friend is attacked - so does the enemy's.
+Hit hard units with artillery first, then attack.
+Units gain experience (stars) in battle.
+== 7. THE UNIT ACTION STRIP
+Appears on the right when a unit is selected.
+Supply - refill ammo and fuel. Uses the whole turn; works best near your cities and airfields and away from the enemy.
+Undo - take back the last move (if no new enemy was spotted).
+Air - embark into / out of air transport.
+Merge - join two weak units of the same type.
+Split - split off part of a unit's strength.
+Info - full statistics (same as holding on a unit).
+== 8. TURNS AND THE ENEMY TURN
+End your turn with Y or Start > End turn.
+R jumps to each unit that still has orders, so you never forget one; auto-select (Options) does it after each attack.
+The enemy then moves (watch it, or switch "Watch the enemy turn" off in Options for speed).
+Press Start during the enemy turn: the menu opens as soon as your turn begins.
+== 9. PRESTIGE, BUYING, DEPLOYING
+Prestige (top right) is earned by taking objectives and destroying enemy units.
+Start > Purchase units: pick a class on the left, a unit, Transport if wanted, then Buy. X shows what you ordered (Refund to cancel).
+New units arrive next turn: Start > Deploy units, tap one in the left strip, then a highlighted hex near your cities.
+On a deployment turn you can also pick up placed units and move them.
+== 10. UNIT TYPES  (1/2)
+Infantry - holds cities, forests, hills. Slow.
+Tanks - strong attack against soft and hard targets. Weak in towns and forests.
+Recon - fast, sees far. Do not fight with it.
+Anti-tank - strong against tanks; defends well.
+Artillery - attacks from range; supports adjacent friends when they are attacked.
+Anti-aircraft / Air defence - shoot down aircraft over and next to them.
+== 10. UNIT TYPES  (2/2)
+Fighters - kill enemy aircraft and escort bombers.
+Tactical bombers - attack ground units.
+Level bombers - damage cities and airfields, cutting enemy supply.
+Ships - bombard the coast from range.
+Ground transports carry infantry and guns faster; a unit in transport defends badly, so unload before contact.
+Aircraft use fuel every turn: return to an airfield before it runs out.
+== 11. SUPPLY, FUEL, WEATHER
+Ammo is used by every attack; fuel by moving (and every turn for aircraft).
+The Supply rate is higher near your cities and airfields and lower next to enemies.
+Rain and snow slow ground units; bad weather limits aircraft. The status bar shows today's weather; Scenario info shows the forecast.
+Rivers and mud are slow; roads are fast.
+== 12. WINNING AND CAMPAIGNS
+Objectives (top screen) are the victory hexes. Start > Victory conditions shows exactly what wins.
+Taking every objective early usually gives a Major Victory; on time a Minor one; otherwise a defeat.
+In a campaign, a Major Victory can open a better next battle (or bonus prestige); your core units keep their experience.
+== 13. SAVING, OPTIONS, FILES
+Autosave at the start of each of your turns (Continue on the title screen). Start > Save game: ten slots.
+Options: forecast tap, auto-select, unit badges, hex grid, watch enemy turn, animation speed, sound.
+Files live in sdmc:/3ds/lgeneral/. If something goes wrong, lgeneral.log and crash.txt there show what happened.
+Install or update over Wi-Fi with ftpd.
+== 14. STRATEGY TIPS
+- Soften a strong position with artillery or bombers before the main attack.
+- Keep fighters over your bombers.
+- Put infantry in towns and forests; keep tanks in the open.
+- Never end a turn with a transport next to the enemy.
+- Watch the turn limit: take the objectives, not every enemy unit.
+- Use Supply before low ammo becomes no ammo.
+- LGeneral is GPL software by Michael Speck; 3DS port: lgeneral-3ds.

@@ -413,9 +413,83 @@ static const char *help_text =
     "- Entrenched infantry in rough terrain is very hard to dislodge.#"
     "- The game autosaves at the start of each of your turns (Continue on the title screen).";
 
-void scr_open_help( void )
+void scr_open_help( void ) { scr_open_manual(); }
+
+/* ======================================================================
+   Manual (docs/manual.txt, compiled in): page on top, chapters below
+   ====================================================================== */
+#include "dsui_manual.h"
+static int man_page = 0, man_return = UM_NONE;
+
+static int man_chapter_of( int page )
 {
-    scr_open_pages( "How to play", strdup( help_text ) );
+    int c = 0, i;
+    for ( i = 0; i < MANUAL_CHAPTERS; i++ ) if ( manual_chapter_page[i] <= page ) c = i;
+    return c;
+}
+static void man_build( void )
+{
+    int i;
+    lst_init( "Manual - tap a chapter", 0 );
+    for ( i = 0; i < MANUAL_CHAPTERS; i++ ) lst_add( manual_chapter_name[i], 0, i + 1, 1 );
+    lst_buttons( "< Prev", "Close", "Next >" );
+    btn_on[0] = man_page > 0;
+    btn_on[2] = man_page < MANUAL_PAGES - 1;
+    sel = man_chapter_of( man_page ); list_clamp();
+}
+void scr_open_manual( void )
+{
+    if ( ui_mode != UM_MANUAL ) man_return = ui_mode;
+    ui_mode = UM_MANUAL;
+    man_build();
+#ifndef __3DS__
+    {   /* authoring check: report pages that do not fit the top screen */
+        int i, cap = ( DS_TOP_H - 48 ) / ( dsfont_body.height + 1 );
+        for ( i = 0; i < MANUAL_PAGES; i++ ) {
+            int n = dg_text_lines( &dsfont_body, DS_W - 32, manual_body[i] );
+            if ( n > cap ) printf( "manual: page %d (%s) has %d lines, %d fit\n", i, manual_title[i], n, cap );
+        }
+    }
+#endif
+    ds_mark_all();
+}
+static void man_goto( int page )
+{
+    if ( page < 0 ) page = 0;
+    if ( page > MANUAL_PAGES - 1 ) page = MANUAL_PAGES - 1;
+    if ( page == man_page ) return;
+    man_page = page;
+    man_build();
+    ds_mark_all();
+}
+static void manual_input( void )
+{
+    int r, c = man_chapter_of( man_page );
+    unsigned lr = in.rep & ( K_LEFT | K_RIGHT );
+    if ( lr & K_LEFT ) { man_goto( man_page - 1 ); return; }
+    if ( lr & K_RIGHT ) { man_goto( man_page + 1 ); return; }
+    if ( in.pressed & K_L ) { man_goto( manual_chapter_page[c > 0 ? c - 1 : 0] ); return; }
+    if ( in.pressed & K_R ) { if ( c + 1 < MANUAL_CHAPTERS ) man_goto( manual_chapter_page[c + 1] ); return; }
+    in.rep &= ~( K_LEFT | K_RIGHT );
+    r = list_input();
+    if ( r == L_BTN0 ) man_goto( man_page - 1 );
+    else if ( r == L_BTN0 - 2 ) man_goto( man_page + 1 );
+    else if ( r == L_BACK || r == L_BTN0 - 1 || ( in.pressed & K_START ) ) {
+        if ( man_return == UM_TITLE ) scr_open_title();
+        else if ( man_return == UM_MENU ) scr_open_game_menu();
+        else scr_close();
+    }
+    else if ( r >= 1 && r <= MANUAL_CHAPTERS ) man_goto( manual_chapter_page[r - 1] );
+}
+static void manual_draw_top( void )
+{
+    char t[24];
+    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
+    dg_panel( 6, 6, DS_W - 12, DS_TOP_H - 12 );
+    snprintf( t, sizeof t, "%d / %d", man_page + 1, MANUAL_PAGES );
+    dg_text_r( &dsfont_small, DS_W - 16, 15, DC_DIM, t );
+    dg_text_fit( &dsfont_title, 16, 12, DS_W - 32 - 50, DC_ACCENT, manual_title[man_page] );
+    dg_text_wrap( &dsfont_body, 16, 36, DS_W - 32, DS_TOP_H - 48, DC_TEXT, manual_body[man_page], 0 );
 }
 
 /* ======================================================================
@@ -750,7 +824,7 @@ void scr_open_title( void )
     lst_add( "New campaign", 0, T_CAMP, 1 );
     lst_add( "Load game", 0, T_LOAD, 1 );
     lst_add( "Options", 0, T_OPTIONS, 1 );
-    lst_add( "How to play", 0, T_HELP, 1 );
+    lst_add( "Manual", 0, T_HELP, 1 );
     lst_add( "Quit", 0, T_QUIT, 1 );
     ui_mode = UM_TITLE;
     ds_mark_all();
@@ -811,7 +885,7 @@ void scr_open_game_menu( void )
     lst_add( "Save game", 0, G_SAVE, dsb_status() == DSB_STATUS_NONE && !dsb_deploy_turn() );
     lst_add( "Load game", 0, G_LOAD, 1 );
     lst_add( "Options", 0, G_OPTIONS, 1 );
-    lst_add( "How to play", 0, G_HELP, 1 );
+    lst_add( "Manual", 0, G_HELP, 1 );
     lst_add( "Disband selected unit", 0, G_DISBAND, cur_unit && cur_unit->unused );
     if ( dsb_status() == DSB_STATUS_DEPLOY ) lst_add( "Finish deployment", 0, G_ENDTURN, 1 );
     else lst_add( "End turn", 0, G_ENDTURN, dsb_status() == DSB_STATUS_NONE );
@@ -1220,7 +1294,7 @@ static void purchase_draw_top( void )
 unsigned scr_view_key( void )
 {
     unsigned lo = ( (unsigned)scroll_top * 31u + (unsigned)pu_class_top * 7u ) & 0xffff;
-    unsigned hi = ( (unsigned)sel * 131u + (unsigned)page_i * 17u + (unsigned)pu_class * 3u + (unsigned)ui_mode ) & 0xffff;
+    unsigned hi = ( (unsigned)sel * 131u + (unsigned)page_i * 17u + (unsigned)pu_class * 3u + (unsigned)man_page * 257u + (unsigned)ui_mode ) & 0xffff;
     return ( hi << 16 ) | lo;
 }
 
@@ -1233,6 +1307,7 @@ void scr_input( void )
         case UM_PURCHASE: purchase_input(); break;
         case UM_SPLIT: split_input(); break;
         case UM_PAGES: pages_input(); break;
+        case UM_MANUAL: manual_input(); break;
         case UM_SCENLIST: case UM_CAMPLIST: scenlist_input(); break;
         case UM_SCENSETUP: scensetup_input(); break;
         case UM_SLOTS: slots_input(); break;
@@ -1302,6 +1377,7 @@ void scr_draw_top( void )
         case UM_STATUS: ds_status_draw_top(); break;
         case UM_TITLE: title_draw_top(); break;
         case UM_PAGES: pages_draw_top(); break;
+        case UM_MANUAL: manual_draw_top(); break;
         case UM_SCENLIST: case UM_CAMPLIST: scenlist_draw_top(); break;
         case UM_SCENSETUP: top_text_panel( 0, sel_info, 0 ); break;
         case UM_CAMPBRIEF: campbrief_draw_top(); break;
