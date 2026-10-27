@@ -56,6 +56,16 @@ static inline void putp( SDL_Surface *s, int x, int y, Uint32 v )
 static inline void blendp( SDL_Surface *s, int x, int y, int r, int g, int b, int a )
 {
     Uint8 dr, dg_, db;
+    if ( s->format->BytesPerPixel == 2 && s->format->Rmask == 0xf800 && s->format->Gmask == 0x07e0 ) {
+        /* RGB565 fast path (the 3DS screen and canvas): no SDL_GetRGB/MapRGB per pixel */
+        Uint16 *p = (Uint16*)( (Uint8*)s->pixels + y * s->pitch ) + x;
+        int v = *p, vr = v >> 11, vg = ( v >> 5 ) & 63, vb = v & 31;
+        vr += ( ( ( r >> 3 ) - vr ) * a ) >> 8;
+        vg += ( ( ( g >> 2 ) - vg ) * a ) >> 8;
+        vb += ( ( ( b >> 3 ) - vb ) * a ) >> 8;
+        *p = (Uint16)( ( vr << 11 ) | ( vg << 5 ) | vb );
+        return;
+    }
     Uint32 v = getp( s, x, y );
     SDL_GetRGB( v, s->format, &dr, &dg_, &db );
     dr  = dr  + ( ( r - dr  ) * a >> 8 );
@@ -373,23 +383,32 @@ void dg_downscale2( SDL_Surface *src, int sx, int sy, int w, int h, int dx, int 
 void dg_mask_tint( int x, int y, int w, int h, const int *mask, int mw, int mh, int zn, int zd,
                    DSColor c, int alpha, DSColor oc, int outline )
 {
+    /* screen pixel -> mask pixel lookups are tabulated once per call: the 3DS CPU has no divide
+       instruction, and this runs for every unit hex on every map redraw */
+    int mxs[136], mys[136];   /* index = pixel + 4 */
     int i, j;
     int r = ( c >> 16 ) & 255, g = ( c >> 8 ) & 255, b = c & 255;
     Uint32 osolid;
-#define MS( ii, jj ) ( (ii) >= 0 && (jj) >= 0 && (ii) * zn / zd < mw && (jj) * zn / zd < mh && \
-                      mask[( (jj) * zn / zd ) * mw + (ii) * zn / zd] )
-    if ( !T || !mask || zd <= 0 ) return;
+    if ( !T || !mask || zd <= 0 || w <= 0 || h <= 0 ) return;
+    if ( w > 128 ) w = 128;
+    if ( h > 128 ) h = 128;
+    if ( outline > 4 ) outline = 4;
+    for ( i = -4; i < w + 4; i++ ) { int v = ( i < 0 || i >= w ) ? -1 : i * zn / zd; mxs[i + 4] = ( v >= mw ) ? -1 : v; }
+    for ( j = -4; j < h + 4; j++ ) { int v = ( j < 0 || j >= h ) ? -1 : j * zn / zd; mys[j + 4] = ( v >= mh ) ? -1 : v; }
+#define MS( ii, jj ) ( mxs[(ii) + 4] >= 0 && mys[(jj) + 4] >= 0 && mask[mys[(jj) + 4] * mw + mxs[(ii) + 4]] )
     osolid = mapc( T->format, oc );
     for ( j = 0; j < h; j++ ) {
         int py = y + j;
-        if ( py < cy0 || py >= cy1 || j * zn / zd >= mh ) continue;
+        if ( py < cy0 || py >= cy1 || mys[j + 4] < 0 ) continue;
         for ( i = 0; i < w; i++ ) {
             int px = x + i;
             if ( px < cx0 || px >= cx1 ) continue;
             if ( !MS( i, j ) ) continue;
             if ( outline ) {
-                int edge = ( i == 0 || j == 0 || i == w - 1 || j == h - 1 ||
-                             !MS( i - 1, j ) || !MS( i + 1, j ) || !MS( i, j - 1 ) || !MS( i, j + 1 ) );
+                /* outline = ring thickness in pixels (1..4) */
+                int k, edge = 0;
+                for ( k = 1; k <= outline && !edge; k++ )
+                    edge = !MS( i - k, j ) || !MS( i + k, j ) || !MS( i, j - k ) || !MS( i, j + k );
                 if ( edge ) { putp( T, px, py, osolid ); continue; }
             }
             if ( alpha > 0 ) blendp( T, px, py, r, g, b, alpha );

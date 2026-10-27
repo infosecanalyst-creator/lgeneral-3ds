@@ -215,12 +215,15 @@ void ds_read_input( void )
         in.drag = 0; lp_fired = 0; last_tx = tx; last_ty = ty;
     }
     else if ( t ) {
-        if ( !in.drag && ( abs( tx - in.down_x ) > 6 || abs( ty - in.down_y ) > 6 ) ) in.drag = 1;
+        if ( !in.drag && ( abs( tx - in.down_x ) > 8 || abs( ty - in.down_y ) > 8 ) ) in.drag = 1;   /* resistive screen jitters */
         if ( in.drag ) { in.drag_dx = tx - last_tx; in.drag_dy = ty - last_ty; }
         else if ( !lp_fired && now - in.down_time >= 450 ) { in.long_press = 1; lp_fired = 1; }
         last_tx = tx; last_ty = ty;
     }
-    if ( in.up && !in.drag && !lp_fired ) { in.tap = 1; in.tap_x = in.down_x; in.tap_y = in.down_y; }
+    /* a release without dragging is a tap however long it was held (buttons must never ignore a firm press);
+       the map ignores taps that already fired a long-press */
+    in.was_long = lp_fired;
+    if ( in.up && !in.drag ) { in.tap = 1; in.tap_x = in.down_x; in.tap_y = in.down_y; }
     in.touch = t;
     if ( t ) { in.tx = tx; in.ty = ty; }
     prev_touch = t;
@@ -908,7 +911,7 @@ static void map_input( void )
         }
         drag_unit = 0;
     }
-    if ( in.tap ) {
+    if ( in.tap && !in.was_long ) {
         bot_to_canvas( in.tap_x, in.tap_y, &cx, &cy );
         if ( dsb_map_pos( cx, cy, &mx, &my, &region ) ) {
             cursor_on = 0;
@@ -953,8 +956,18 @@ int dsui_tick( void )
             scr_open_title();
     }
     if ( ui_mode != UM_NONE ) {
+        /* redraw only what changed: dragging a list repaints the bottom screen only when it scrolls,
+           and the top screen only when the selection changes or a button/tap acted */
+        int mode0 = ui_mode;
+        unsigned k0 = scr_view_key();
         scr_input();
-        if ( in.pressed || in.down || in.up || in.drag ) ds_mark_all();
+        if ( ui_mode != mode0 ) ds_mark_all();
+        else {
+            unsigned k1 = scr_view_key();
+            int discrete = in.pressed || in.tap || in.up;
+            if ( k1 != k0 || discrete || in.down ) ds_bot_dirty = 1;
+            if ( discrete || ( k1 >> 16 ) != ( k0 >> 16 ) ) ds_top_dirty = 1;
+        }
         return ui_mode != UM_NONE;
     }
     if ( !engine_ready ) return 0;
@@ -995,7 +1008,8 @@ static void unit_badge( Unit *u, int mx, int my, int air )
     if ( !ally && !mask[mx][my].spot ) return;
     if ( !hex_to_bot( mx, my, &bx, &by ) ) return;
     side = ally ? DC_SIDE_FRIEND : DC_SIDE_ENEMY;
-    if ( !air || !map[mx][my].g_unit ) hex_overlay( mx, my, side, 70, side, 1 );
+    if ( ( !air || !map[mx][my].g_unit ) && !( cur_unit && cur_unit->x == mx && cur_unit->y == my ) )
+        hex_overlay( mx, my, side, 70, side, 1 );   /* the selected hex keeps its gold ring */
     if ( ally && ( unit_low_ammo( u ) || unit_low_fuel( u ) ) ) txt = 0xffd040;
     snprintf( t, sizeof t, "%d", u->str );
     {
@@ -1037,6 +1051,11 @@ static void draw_map_overlays( void )
                 if ( v & 1 ) hex_overlay( x, y, DC_ENEMY, 70, 0, 0 );
                 else if ( v & 2 ) hex_overlay( x, y, DC_WARN, 55, 0, 0 );
             }
+    }
+    /* selected unit: thick bright ring (black under-ring keeps it visible on any terrain) */
+    if ( cur_unit && !cur_unit->killed && cur_unit->x >= 0 && st != DSB_STATUS_DEPLOY ) {
+        hex_overlay( cur_unit->x, cur_unit->y, 0, 0, 0x000000, 4 );
+        hex_overlay( cur_unit->x, cur_unit->y, 0xffffff, 40, 0xffe14a, 3 );
     }
     /* unit badges: side colour + strength in a readable font */
     if ( config.show_bar ) {
@@ -1578,6 +1597,10 @@ void ds_present( void )
     sig = state_sig();
     if ( sig != last_sig ) { last_sig = sig; ds_top_dirty = 1; ds_bot_dirty = 1; }
     if ( !ds_top_dirty && !ds_bot_dirty ) return;
+#ifdef DSUI_PROF
+    { static Uint32 t0 = 0, n = 0, nt = 0, nb = 0; n++; nt += ds_top_dirty; nb += ds_bot_dirty;
+      if ( SDL_GetTicks() - t0 >= 1000 ) { printf( "prof: mode %d presents/s %u (top %u bot %u)\n", ui_mode, n, nt, nb ); n = nt = nb = 0; t0 = SDL_GetTicks(); } }
+#endif
     if ( ds_bot_dirty ) {
         dg_clip( DS_BOT_X, DS_BOT_Y, DS_BOT_W, DS_BOT_H );
         if ( ui_mode != UM_NONE ) scr_draw_bottom();
@@ -1657,14 +1680,22 @@ void dsui_status_screen( const char *title, const char *text, int timeout_ms )
     status_title = title; status_text = text;
     ui_mode = UM_STATUS;
     ds_mark_all(); ds_present();
-    /* wait until all input is released, then for a tap / A / B / Start */
-    for ( ;; ) {
-        SDL_PumpEvents();
-        ds_read_input();
-        if ( sdl_quit ) break;
-        if ( timeout_ms > 0 && SDL_GetTicks() - start >= (Uint32)timeout_ms ) break;
-        if ( SDL_GetTicks() - start > 250 && ( in.tap || ( in.pressed & ( K_A | K_B | K_START ) ) ) ) break;
-        SDL_Delay( 16 );
+    /* continue on the first touch that starts after the screen appeared (acts on press, not release,
+       so it never feels unresponsive), or A / B / Start */
+    {
+        int armed = 0;
+        for ( ;; ) {
+            SDL_PumpEvents();
+            ds_read_input();
+            if ( sdl_quit ) break;
+            if ( timeout_ms > 0 && SDL_GetTicks() - start >= (Uint32)timeout_ms ) break;
+            if ( !in.touch && SDL_GetTicks() - start > 120 ) armed = 1;   /* stylus lifted since it opened */
+            if ( armed && ( in.down || ( in.pressed & ( K_A | K_B | K_START ) ) ) ) break;
+            SDL_Delay( 16 );
+        }
+        /* swallow the rest of this touch so it does not land on what comes next */
+        while ( in.touch && !sdl_quit ) { SDL_PumpEvents(); ds_read_input(); SDL_Delay( 16 ); }
+        in.tap = in.up = in.down = 0; in.pressed = 0;
     }
     ui_mode = old_mode == UM_STATUS ? UM_NONE : old_mode;
     status_title = status_text = 0;

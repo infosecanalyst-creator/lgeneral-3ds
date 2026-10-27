@@ -214,14 +214,40 @@ static void build_options( void )
         lst_add( "Animation speed", t, 6, 1 );
     }
 #ifdef WITH_SOUND
-    lst_add( "Sound effects", !audio_ok ? "Unavailable" : config.sound_on ? "On" : "Off", 7, audio_ok );
     {
-        char t[16]; snprintf( t, sizeof t, "%d%%", config.sound_volume * 100 / 128 );
-        lst_add( "Volume", t, 8, audio_ok && config.sound_on );
+        /* one row: Off, 25%, 50%, 75%, 100% */
+        char t[16];
+        if ( !audio_ok ) snprintf( t, sizeof t, "Unavailable" );
+        else if ( !config.sound_on ) snprintf( t, sizeof t, "Off" );
+        else snprintf( t, sizeof t, "%d%%", ( config.sound_volume + 16 ) * 100 / 128 / 25 * 25 );
+        lst_add( "Sound", t, 7, audio_ok );
     }
 #endif
-    lst_buttons( "Back", 0, 0 );
+    lst_add( "Done", 0, 99, 1 );   /* a row instead of a footer button, so every option fits without scrolling */
     sel = keep; list_clamp();
+}
+
+/* top screen explains only the highlighted option (short text, big font) */
+static void options_draw_top( void )
+{
+    static const char *help[] = {
+        "Forecast tap#On: the first tap on an enemy shows the expected losses on this screen, the second tap attacks.#Off: attack on the first tap.",
+        "Auto-select#After a unit has moved and attacked, the next unit that still has orders is selected for you.",
+        "Unit badges#Blue hex and number = your units, red = enemy. The number is strength.#White top edge = aircraft. Yellow number = low ammo or fuel.",
+        "Hex grid#Outline every hex on the map.",
+        "Watch the enemy turn#On: follow each enemy move on the map.#Off: the enemy turn is much faster.",
+        "Animation speed#How fast moves and battles play: x1 to x4.",
+        "Sound#Tap to step through Off, 25%, 50%, 75%, 100%.",
+        "Done#Save these settings and go back."
+    };
+    int id = ( n_items > 0 && sel < n_items ) ? items[sel].id : 0, k;
+    char t[400], *nl;
+    k = ( id == 99 ) ? 7 : id - 1;
+    if ( k < 0 || k > 7 ) k = 7;
+    snprintf( t, sizeof t, "%s", help[k] );
+    nl = strchr( t, '#' );
+    if ( nl ) { *nl = 0; top_text_panel( t, nl + 1, 0 ); }
+    else top_text_panel( "Options", t, 0 );
 }
 
 void scr_open_options( void )
@@ -243,14 +269,16 @@ static void options_input( void )
         case 5: config.show_cpu_turn = !config.show_cpu_turn; break;
         case 6: config.anim_speed = config.anim_speed >= 4 ? 1 : config.anim_speed + 1; break;
 #ifdef WITH_SOUND
-        case 7: config.sound_on = !config.sound_on; audio_enable( config.sound_on ); break;
-        case 8:
-            config.sound_volume = config.sound_volume >= 128 ? 32 : config.sound_volume + 32;
+        case 7:
+            if ( !config.sound_on ) { config.sound_on = 1; config.sound_volume = 32; }
+            else if ( config.sound_volume >= 128 ) config.sound_on = 0;
+            else config.sound_volume = ( config.sound_volume / 32 + 1 ) * 32;
             if ( config.sound_volume > 128 ) config.sound_volume = 128;
+            audio_enable( config.sound_on );
             audio_set_volume( config.sound_volume );
             break;
 #endif
-        case L_BACK: case L_BTN0:
+        case 99: case L_BACK: case L_BTN0:
             dsui_options_save();
             save_config();
             if ( return_mode == UM_TITLE ) scr_open_title();
@@ -1188,6 +1216,14 @@ static void purchase_draw_top( void )
 /* ======================================================================
    Dispatch
    ====================================================================== */
+/* low 16 bits: things only the bottom screen shows (scroll positions); high bits: selection, which the top shows */
+unsigned scr_view_key( void )
+{
+    unsigned lo = ( (unsigned)scroll_top * 31u + (unsigned)pu_class_top * 7u ) & 0xffff;
+    unsigned hi = ( (unsigned)sel * 131u + (unsigned)page_i * 17u + (unsigned)pu_class * 3u + (unsigned)ui_mode ) & 0xffff;
+    return ( hi << 16 ) | lo;
+}
+
 void scr_input( void )
 {
     switch ( ui_mode ) {
@@ -1286,15 +1322,7 @@ void scr_draw_top( void )
             ds_status_bar();
             if ( cur_unit ) ds_unit_card( 4, 24, DS_W - 8, 212, cur_unit, "SPLIT", 1 );
             break;
-        case UM_OPTIONS:
-            top_text_panel( "Options", "Forecast tap: when on, the first tap on an enemy shows the battle forecast "
-                            "and the second tap attacks. Off attacks on the first tap.#"
-                            "Auto-select: after a unit has moved and attacked, the next unit with orders is selected.#"
-                            "Unit badges: blue = yours, red = enemy, with strength. White top edge = aircraft; yellow number = low ammo or fuel.#"
-                            "Hex grid: outline every hex.#"
-                            "Watch the enemy turn: follow CPU moves on the map (off is faster).#"
-                            "Animation speed: how fast moves and battles play.", 0 );
-            break;
+        case UM_OPTIONS: options_draw_top(); break;
         default:
             ds_status_bar();
             if ( scen_info && ds_engine_ready() ) {

@@ -30,6 +30,7 @@ typedef struct {
     int down_x, down_y;
     int up;               /* touch ended this frame */
     int long_press;       /* fired once when held still >= 450ms */
+    int was_long;         /* the current/just-ended touch fired a long-press */
     Uint32 down_time;
 } DSInput;
 extern DSInput in;
@@ -81,6 +82,7 @@ void scr_close( void );
 void scr_draw_top( void );
 void scr_draw_bottom( void );
 void scr_input( void );
+unsigned scr_view_key( void );
 void dsui_options_load( void );
 void dsui_options_save( void );
 
