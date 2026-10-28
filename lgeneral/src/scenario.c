@@ -266,6 +266,12 @@ Publics
 Load a scenario.
 ====================================================================
 */
+#ifdef DSUI
+#define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+static Uint32 lt_prev;
+#else
+#define LT( label )
+#endif
 int scen_load( const char *fname )
 {
     char log_str[256];
@@ -314,7 +320,9 @@ int scen_load( const char *fname )
     sprintf( log_str, tr("Loading Nations") );
     write_line( sdl.screen, log_font, log_str, log_x, &log_y ); refresh_screen( 0, 0, 0, 0 );
     if ( !parser_get_value( pd, "nation_db", &str, 0 ) ) goto parser_failure;
+    lt_prev = SDL_GetTicks();
     if ( !nations_load( str ) ) goto failure;
+    LT( "nations" );
     /* unit libs */
     if ( !parser_get_pdata( pd, "unit_db", &sub ) ) {
         /* check the scenario file itself but only for the main entry */
@@ -339,6 +347,7 @@ int scen_load( const char *fname )
             }
         }
     }
+    LT( "unit libs" );
     /* map and weather */
     if ( !parser_get_value( pd, "map", &str, 0 ) ) {
         sprintf(path, "../scenarios/%s", fname); /* check the scenario file itself */
@@ -347,6 +356,7 @@ int scen_load( const char *fname )
     sprintf( log_str, tr("Loading Map '%s'"), str );
     write_line( sdl.screen, log_font, log_str, log_x, &log_y ); refresh_screen( 0, 0, 0, 0 );
     if ( !map_load( str ) ) goto failure;
+    LT( "map+terrain" );
     weather = calloc( scen_info->turn_limit, sizeof( int ) );
     if ( parser_get_values( pd, "weather", &values ) ) {
         list_reset( values ); i = 0;
@@ -824,7 +834,7 @@ int scen_load( const char *fname )
     
     /* check which nations may do purchase for this scenario */
     update_nations_purchase_flag();
-    
+    LT( "units+rest" );
     return 1;
 parser_failure:        
     fprintf( stderr, "%s\n", parser_get_error() );

@@ -518,6 +518,8 @@ PData* parser_read_file( const char *tree_name, const char *fname )
         sprintf( parser_error, tr("%s: file not found"), fname );
         return 0;
     }
+    /* the parser reads one byte per call: a big stdio buffer keeps that off the (slow) SD card */
+    setvbuf( state.file, NULL, _IOFBF, 64 * 1024 );
     /* create common tree data */
     st->ctd = common_tree_data_create(fname);
     /* create top level pdata */

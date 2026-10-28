@@ -43,6 +43,48 @@ inline void get_full_bmp_path( char *full_path, const char *file_name )
     sprintf(full_path,  "%s/gfx/%s", get_gamedir(), file_name );
 }
 
+/* read the whole file with one read (one SD access instead of many small ones), then decode */
+static SDL_Surface *load_bmp_fast( const char *path )
+{
+    FILE *f = fopen( path, "rb" );
+    long n;
+    unsigned char *mem;
+    SDL_Surface *s = 0;
+    if ( !f ) return SDL_LoadBMP( path );   /* let SDL report the error */
+    fseek( f, 0, SEEK_END ); n = ftell( f ); fseek( f, 0, SEEK_SET );
+    mem = ( n > 0 ) ? malloc( n ) : 0;
+    if ( mem && fread( mem, 1, n, f ) == (size_t)n )
+        s = SDL_LoadBMP_RW( SDL_RWFromMem( mem, (int)n ), 1 );
+    fclose( f );
+    free( mem );
+    return s ? s : SDL_LoadBMP( path );
+}
+
+/* direct 24-bit BMP -> RGB565 conversion (SDL 1.2's generic converter is slow on the 3DS);
+   returns 0 when the formats are not the expected ones */
+static SDL_Surface *convert_24_to_565( SDL_Surface *src, SDL_PixelFormat *df, int flags )
+{
+    SDL_Surface *d;
+    int x, y;
+    SDL_PixelFormat *sf = src->format;
+    if ( sf->BytesPerPixel != 3 || df->BytesPerPixel != 2 || df->Rmask != 0xf800 || df->Gmask != 0x07e0 || df->Bmask != 0x001f )
+        return 0;
+    d = SDL_CreateRGBSurface( flags, src->w, src->h, 16, df->Rmask, df->Gmask, df->Bmask, df->Amask );
+    if ( !d ) return 0;
+    if ( SDL_MUSTLOCK( src ) ) SDL_LockSurface( src );
+    for ( y = 0; y < src->h; y++ ) {
+        const Uint8 *p = (const Uint8*)src->pixels + y * src->pitch;
+        Uint16 *q = (Uint16*)( (Uint8*)d->pixels + y * d->pitch );
+        for ( x = 0; x < src->w; x++, p += 3 ) {
+            Uint32 v = p[0] | ( p[1] << 8 ) | ( p[2] << 16 );
+            Uint32 r = ( v & sf->Rmask ) >> sf->Rshift, g = ( v & sf->Gmask ) >> sf->Gshift, b = ( v & sf->Bmask ) >> sf->Bshift;
+            q[x] = (Uint16)( ( ( r >> 3 ) << 11 ) | ( ( g >> 2 ) << 5 ) | ( b >> 3 ) );
+        }
+    }
+    if ( SDL_MUSTLOCK( src ) ) SDL_UnlockSurface( src );
+    return d;
+}
+
 /*
     load a surface from file putting it in soft or hardware mem
 */
@@ -55,7 +97,7 @@ SDL_Surface* load_surf(const char *fname, int f)
 
     get_full_bmp_path( path, fname );
 
-    buf = SDL_LoadBMP( path );
+    buf = load_bmp_fast( path );
 
     if ( buf == 0 ) {
         fprintf( stderr, "%s: %s\n", fname, SDL_GetError() );
@@ -74,7 +116,8 @@ SDL_Surface* load_surf(const char *fname, int f)
     SDL_BlitSurface(buf, 0, new_sur, 0);
     SDL_FreeSurface(buf);*/
     spf = SDL_GetVideoSurface()->format;
-    new_sur = SDL_ConvertSurface( buf, spf, f );
+    new_sur = convert_24_to_565( buf, spf, f );
+    if ( !new_sur ) new_sur = SDL_ConvertSurface( buf, spf, f );
     SDL_FreeSurface( buf );
     SDL_SetColorKey( new_sur, SDL_SRCCOLORKEY, 0x0 );
     SDL_SetAlpha( new_sur, 0, 0 ); /* no alpha */

@@ -96,7 +96,8 @@ static void draw_list( void )
         Item *it = &items[scroll_top + i];
         int ry = y + HEAD_H + i * ROW_H;
         int is_sel = ( scroll_top + i == sel );
-        dg_fill( x + 2, ry, list_w - 4, ROW_H - 2, is_sel ? 0x34507a : DC_PANEL );
+        int down = it->enabled && ds_pressed( x + 2, ry, list_w - 4, ROW_H - 2 );
+        dg_fill( x + 2, ry, list_w - 4, ROW_H - 2, down ? 0x5b80b8 : is_sel ? 0x34507a : DC_PANEL );
         if ( is_sel ) dg_rect( x + 2, ry, list_w - 4, ROW_H - 2, DC_ACCENT );
         dg_text_fit( &dsfont_body, x + 10, ry + 5, list_w - 20 - dg_text_w( &dsfont_body, it->right ),
                      it->enabled ? DC_TEXT : DC_DISABLED, it->label );

@@ -77,6 +77,36 @@ Terrain_Icons *terrain_icons = 0;
 Load terrain types, weather information and hex tile icons.
 ====================================================================
 */
+/* blend the fog hex over every tile of a 16 bpp RGB565 strip in one pass
+   (same result as the alpha blit, far faster on the 3DS); returns 0 if formats differ */
+static int fog_tiles_fast( SDL_Surface *dst, int count )
+{
+    SDL_Surface *fog = terrain_icons->fog;
+    Uint32 key;
+    int k, x, y, a = FOG_ALPHA;
+    if ( !fog || dst->format->BytesPerPixel != 2 || fog->format->BytesPerPixel != 2 ||
+         dst->format->Rmask != 0xf800 || fog->format->Rmask != 0xf800 ) return 0;
+    if ( fog->w < hex_w || fog->h < hex_h || dst->h < hex_h ) return 0;
+    key = fog->format->colorkey;
+    for ( y = 0; y < hex_h; y++ ) {
+        const Uint16 *fp = (const Uint16*)( (const Uint8*)fog->pixels + y * fog->pitch );
+        Uint16 *dp = (Uint16*)( (Uint8*)dst->pixels + y * dst->pitch );
+        for ( k = 0; k < count; k++ ) {
+            Uint16 *row = dp + k * hex_w;
+            for ( x = 0; x < hex_w; x++ ) {
+                int f = fp[x], v = row[x], r, g, b;
+                if ( ( fog->flags & SDL_SRCCOLORKEY ) && (Uint32)f == key ) continue;
+                r = v >> 11; g = ( v >> 5 ) & 63; b = v & 31;
+                r += ( ( ( f >> 11 ) - r ) * a ) / 255;
+                g += ( ( ( ( f >> 5 ) & 63 ) - g ) * a ) / 255;
+                b += ( ( ( f & 31 ) - b ) * a ) / 255;
+                row[x] = (Uint16)( ( r << 11 ) | ( g << 5 ) | b );
+            }
+        }
+    }
+    return 1;
+}
+
 int terrain_load( char *fname )
 {
     int i, j, k;
@@ -186,6 +216,7 @@ int terrain_load( char *fname )
                 FULL_SOURCE( terrain_types[i].images[j] );
                 blit_surf();
                 count =  terrain_types[i].images[j]->w /  hex_w;
+                if ( !fog_tiles_fast( terrain_types[i].images_fogged[j], count ) )
                 for ( k = 0; k < count; k++ ) {
                     DEST( terrain_types[i].images_fogged[j], k * hex_w, 0,  hex_w, hex_h );
                     SOURCE(  terrain_icons->fog, 0, 0 );

@@ -32,7 +32,7 @@ TOP: your dashboard.
 == 3. STYLUS CONTROLS
 Tap your unit - select it.
 Tap a bright hex - move there.
-Drag a unit - move it in one motion.
+Drag a unit - move it in one motion; drag it onto an enemy to see the forecast and let go to attack.
 Tap an enemy - battle forecast on top; tap it again to attack.
 Drag the empty map - pan.
 Hold on any unit - full statistics.
@@ -62,7 +62,7 @@ Red tint = enemy can move there; orange = it can attack there (tap enemy, or hol
 == 6. MOVING AND ATTACKING  (1/2)
 Moving next to an enemy ends your movement for the turn (zone of control), so plan the last step.
 Attack from a hex next to the enemy (artillery, ships and bombers reach further).
-The first tap on an enemy shows the FORECAST: the expected losses for both sides. Tap again to attack, or tap elsewhere to cancel.
+The first tap on an enemy shows the FORECAST: the expected losses for both sides. Tap again to attack, or tap elsewhere to cancel. Quicker: drag your unit onto the enemy and let go.
 A unit can usually move then attack, or attack then stay put.
 == 6. MOVING AND ATTACKING  (2/2)
 Units that do not move dig in (entrenchment); dug-in units in towns, forests and hills are very hard to dislodge.

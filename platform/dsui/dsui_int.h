@@ -60,6 +60,8 @@ void ds_button( int x, int y, int w, int h, const char *label, int enabled, int 
 int  ds_hit( int px, int py, int x, int y, int w, int h );
 void ds_end_turn_request( void );
 void ds_clear_selection( void );
+int  ds_pressed( int x, int y, int w, int h );
+void ds_click( void );
 int  dsui_choice_screen( const char *title, const char *text, const char **opts, int n );
 void ds_read_input( void );
 int  ds_ready_units( void );

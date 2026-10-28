@@ -17,6 +17,9 @@
 #endif
 
 #include "dsui_int.h"
+#ifdef WITH_SOUND
+#include "audio.h"
+#endif
 
 SDL_Surface *ds_screen = 0, *ds_canvas = 0;
 int ds_top_dirty = 1, ds_bot_dirty = 1;
@@ -337,11 +340,11 @@ static void ensure_visible( int mx, int my )
         int dx = 0, dy = 0;
         if ( !hex_to_bot( mx, my, &bx, &by ) ) { ds_center_on( mx, my ); return; }
         bx -= DS_BOT_X; by -= DS_BOT_Y;
-        int lm = ( dsb_status() == DSB_STATUS_DEPLOY ) ? VIEW_LM + 4 : 4;
+        int lm = ( dsb_status() == DSB_STATUS_DEPLOY ) ? VIEW_LM + 10 : 10;
         if ( bx < lm ) dx = B2C( bx - lm - 26 );
-        else if ( bx + hw > DS_BOT_W - 44 ) dx = B2C( bx + hw - ( DS_BOT_W - 74 ) );
-        if ( by < 4 ) dy = B2C( by - 30 );
-        else if ( by + hh > DS_BOT_H - 4 ) dy = B2C( by + hh - ( DS_BOT_H - 34 ) );
+        else if ( bx + hw > DS_BOT_W - 50 ) dx = B2C( bx + hw - ( DS_BOT_W - 74 ) );
+        if ( by < 10 ) dy = B2C( by - 30 );
+        else if ( by + hh > DS_BOT_H - 10 ) dy = B2C( by + hh - ( DS_BOT_H - 34 ) );
         if ( !dx && !dy ) return;
         pan_view( dx, dy );
     }
@@ -385,8 +388,10 @@ void ds_clear_selection( void ) { clear_selection_state(); }
 
 int ds_engine_ready( void ) { return engine_ready; }
 
+static Uint32 load_t0 = 0;
 void dsui_engine_reset( void )
 {
+    load_t0 = SDL_GetTicks();
     engine_ready = 0;
 }
 
@@ -399,6 +404,7 @@ void dsui_scenario_loaded( void )
     { struct mallinfo2 mi = mallinfo2(); printf( "dsui: heap in use %.1f MB\n", ( mi.uordblks + mi.hblkhd ) / 1048576.0 ); }
 #endif
     engine_ready = ( setup.type != SETUP_RUN_TITLE && setup.type != SETUP_CAMP_BRIEFING && map && hex_w > 0 );
+    printf( "load: engine_init total %u ms\n", SDL_GetTicks() - load_t0 );
     clear_selection_state();
     seen_sel = 0;
     cursor_on = 0; cur_mx = cur_my = -1;
@@ -776,6 +782,7 @@ static void deploy_input( void )
     }
     if ( in.pressed & K_Y ) dsb_press( ID_APPLY_DEPLOY );
     if ( in.tap && in.tap_x < DEP_W ) {
+        ds_click();
         if ( in.tap_y >= DS_BOT_H - 60 && in.tap_y < DS_BOT_H - 30 ) dsb_press( ID_APPLY_DEPLOY );
         else if ( in.tap_y >= DS_BOT_H - 30 ) { if ( !dsb_deploy_turn() ) dsb_press( ID_CANCEL_DEPLOY ); }
         else {
@@ -867,6 +874,7 @@ static void map_input( void )
     /* --- touch --- */
     if ( strip_visible() && in.tap && in.tap_x >= STRIP_X ) {
         int a = in.tap_y / ( DS_BOT_H / ACT_COUNT );
+        if ( a >= 0 && a < ACT_COUNT && act_enabled( a ) ) ds_click();
         if ( a >= 0 && a < ACT_COUNT ) do_act( a );
         return;
     }
@@ -877,7 +885,7 @@ static void map_input( void )
         drag_unit = 0; panning = 0;
         if ( st == DSB_STATUS_NONE && dsb_map_pos( cx, cy, &mx, &my, &region ) ) {
             Unit *u = dsb_prim_unit( mx, my, region );
-            if ( u && u->player == cur_player && !u->killed && u->cur_mov > 0 &&
+            if ( u && u->player == cur_player && !u->killed && ( u->cur_mov > 0 || u->cur_atk_count > 0 ) &&
                  !( strip_visible() && in.down_x >= STRIP_X ) )
                 drag_unit = u;
         }
@@ -886,8 +894,13 @@ static void map_input( void )
         if ( drag_unit ) {
             bot_to_canvas( in.tx, in.ty, &cx, &cy );
             if ( dsb_map_pos( cx, cy, &mx, &my, &region ) && ( mx != cur_mx || my != cur_my ) ) {
+                Unit *t;
                 cur_mx = mx; cur_my = my; cursor_on = 1;
-                if ( cur_unit != drag_unit ) { dsb_select( drag_unit ); clear_selection_state(); }
+                if ( cur_unit != drag_unit ) { Unit *keep = drag_unit; dsb_select( keep ); clear_selection_state(); drag_unit = keep; }
+                /* dragging onto an enemy shows the forecast live; letting go there attacks */
+                t = dsb_target( mx, my, region );
+                if ( t ) set_forecast( t, mx, my, 0 );
+                else { fc_target = 0; fc_strat = 0; fc_mx = fc_my = -1; }
                 ds_mark_all();
             }
         }
@@ -965,6 +978,7 @@ int dsui_tick( void )
         else {
             unsigned k1 = scr_view_key();
             int discrete = in.pressed || in.tap || in.up;
+            if ( in.tap ) ds_click();
             if ( k1 != k0 || discrete || in.down ) ds_bot_dirty = 1;
             if ( discrete || ( k1 >> 16 ) != ( k0 >> 16 ) ) ds_top_dirty = 1;
         }
@@ -975,9 +989,11 @@ int dsui_tick( void )
     if ( ( fc_target || fc_strat ) && ( !cur_unit || cur_unit != fc_attacker || dsb_status() != DSB_STATUS_NONE ) ) { fc_target = 0; fc_strat = 0; fc_mx = fc_my = -1; }
     map_input();
     auto_advance();
-    if ( cur_unit != seen_sel ) {
+    /* bring a newly selected unit into view - but only once the engine is idle, otherwise a selection
+       made during an attack/move animation was marked as seen and never scrolled to */
+    if ( cur_unit != seen_sel && dsb_status() == DSB_STATUS_NONE && actions_count() == 0 ) {
         seen_sel = cur_unit;
-        if ( cur_unit && cur_unit->x >= 0 && dsb_status() == DSB_STATUS_NONE ) ensure_visible( cur_unit->x, cur_unit->y );
+        if ( cur_unit && cur_unit->x >= 0 ) ensure_visible( cur_unit->x, cur_unit->y );
     }
     if ( fc_target && fc_target->killed ) fc_target = 0;
     if ( inspect_unit && inspect_unit->killed ) inspect_unit = 0;
@@ -1097,11 +1113,29 @@ static void draw_banner( const char *t )
     dg_text( &dsfont_body, x + 8, y + 3, DC_TEXT, t );
 }
 
+/* the stylus is held on this (absolute) rectangle right now */
+int ds_pressed( int x, int y, int w, int h )
+{
+    int px = in.tx + DS_BOT_X, py = in.ty + DS_BOT_Y;
+    return in.touch && !in.drag && px >= x && px < x + w && py >= y && py < y + h;
+}
+
+/* button click: theme click sound (if sound is on) */
+void ds_click( void )
+{
+#ifdef WITH_SOUND
+    if ( gui && gui->wav_click ) wav_play( gui->wav_click );
+#endif
+}
+
 void ds_button( int x, int y, int w, int h, const char *label, int enabled, int highlight )
 {
-    dg_fill( x, y, w, h, highlight ? 0x34507a : DC_PANEL2 );
-    dg_rect( x, y, w, h, highlight ? DC_ACCENT : DC_BORDER );
-    dg_text_c( &dsfont_bold, x + w / 2, y + ( h - dsfont_bold.height ) / 2, enabled ? DC_TEXT : DC_DISABLED, label );
+    int down = enabled && ds_pressed( x, y, w, h );
+    /* pressed: lit face, darker inset edge, label nudged down - visible feedback under the stylus */
+    dg_fill( x, y, w, h, down ? 0x5b80b8 : highlight ? 0x34507a : DC_PANEL2 );
+    dg_rect( x, y, w, h, down ? 0xffffff : highlight ? DC_ACCENT : DC_BORDER );
+    if ( down ) dg_rect( x + 1, y + 1, w - 2, h - 2, 0x1a2a40 );
+    dg_text_c( &dsfont_bold, x + w / 2 + down, y + ( h - dsfont_bold.height ) / 2 + down, enabled ? DC_TEXT : DC_DISABLED, label );
 }
 
 static void draw_strip( void )
@@ -1112,7 +1146,8 @@ static void draw_strip( void )
     for ( i = 0; i < ACT_COUNT; i++ ) {
         int en = act_enabled( i );
         int y = DS_BOT_Y + i * bh;
-        dg_fill( x + 2, y + 2, STRIP_W - 3, bh - 3, en ? DC_PANEL2 : DC_PANEL );
+        int down = en && ds_pressed( x + 2, y + 2, STRIP_W - 3, bh - 3 );
+        dg_fill( x + 2, y + 2, STRIP_W - 3, bh - 3, down ? 0x5b80b8 : en ? DC_PANEL2 : DC_PANEL );
         dg_rect( x + 2, y + 2, STRIP_W - 3, bh - 3, en ? DC_BORDER : DC_PANEL2 );
         dg_text_c( &dsfont_small, x + STRIP_W / 2 + 1, y + ( bh - dsfont_small.height ) / 2, en ? DC_TEXT : DC_DISABLED, act_names[i] );
     }
@@ -1349,7 +1384,7 @@ static void forecast_card( int x, int y, int w, int h )
     else if ( fc_att >= cur_unit->str ) dg_text( &dsfont_bold, x + 6, row, DC_ENEMY, "Your unit will likely be destroyed" );
     else if ( fc_att > fc_def ) dg_text( &dsfont_bold, x + 6, row, DC_WARN, "Unfavourable exchange" );
     else dg_text( &dsfont_bold, x + 6, row, DC_DIM, fc_def > fc_att ? "Favourable exchange" : "Even exchange" );
-    dg_text( &dsfont_small, x + 6, y + h - 15, DC_ACCENT, "Tap again or A to attack  -  B: cancel" );
+    dg_text( &dsfont_small, x + 6, y + h - 15, DC_ACCENT, ( drag_unit && in.touch ) ? "Let go here to attack  -  slide off to cancel" : "Tap again or A to attack  -  B: cancel" );
 }
 
 static void hex_card( int x, int y, int w, int h, int mx, int my )
@@ -1658,11 +1693,12 @@ int dsui_choice_screen( const char *title, const char *text, const char **opts, 
         SDL_PumpEvents();
         ds_read_input();
         if ( sdl_quit ) { r = 0; break; }
+        if ( in.down || in.up ) { ds_bot_dirty = 1; ds_present(); }
         if ( SDL_GetTicks() - start > 250 ) {
             if ( in.pressed & K_B ) r = 0;
             if ( in.tap )
                 for ( i = 0; i < n; i++ )
-                    if ( ds_hit( in.tap_x, in.tap_y, 40, choice_y0() + i * ( CH_BTN_H + CH_BTN_GAP ), DS_BOT_W - 80, CH_BTN_H ) ) r = i;
+                    if ( ds_hit( in.tap_x, in.tap_y, 40, choice_y0() + i * ( CH_BTN_H + CH_BTN_GAP ), DS_BOT_W - 80, CH_BTN_H ) ) { r = i; ds_click(); }
         }
         SDL_Delay( 16 );
     }
@@ -1690,7 +1726,13 @@ void dsui_status_screen( const char *title, const char *text, int timeout_ms )
             if ( sdl_quit ) break;
             if ( timeout_ms > 0 && SDL_GetTicks() - start >= (Uint32)timeout_ms ) break;
             if ( !in.touch && SDL_GetTicks() - start > 120 ) armed = 1;   /* stylus lifted since it opened */
-            if ( armed && ( in.down || ( in.pressed & ( K_A | K_B | K_START ) ) ) ) break;
+            if ( armed && ( in.down || ( in.pressed & ( K_A | K_B | K_START ) ) ) ) {
+                /* show the button pressed for a moment, with the click */
+                ds_click();
+                ds_bot_dirty = 1; ds_present();
+                SDL_Delay( 90 );
+                break;
+            }
             SDL_Delay( 16 );
         }
         /* swallow the rest of this touch so it does not land on what comes next */
