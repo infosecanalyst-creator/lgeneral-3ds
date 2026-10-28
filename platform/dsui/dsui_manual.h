@@ -1,6 +1,6 @@
 /* generated from docs/manual.txt by tools/gen_manual.py - edit the .txt */
-#define MANUAL_PAGES 19
-#define MANUAL_CHAPTERS 15
+#define MANUAL_PAGES 20
+#define MANUAL_CHAPTERS 16
 static const char *const manual_title[MANUAL_PAGES] = {
   "LGENERAL 3DS MANUAL",
   "1. STARTING A GAME  (1/2)",
@@ -20,7 +20,8 @@ static const char *const manual_title[MANUAL_PAGES] = {
   "11. SUPPLY, FUEL, WEATHER",
   "12. WINNING AND CAMPAIGNS",
   "13. SAVING, OPTIONS, FILES",
-  "14. STRATEGY TIPS",
+  "14. ENCYCLOPEDIA",
+  "15. STRATEGY TIPS",
 };
 static const char *const manual_body[MANUAL_PAGES] = {
   "Panzer General-style turn-based strategy, World War II and World War I, played with the stylus.##Using this manual:#Tap a chapter on the touch screen to jump to it.#< Prev / Next >, or the D-pad left / right = page.#L / R = previous / next chapter.   B = close.##Open it any time from the title screen or Start > Manual.",
@@ -41,6 +42,7 @@ static const char *const manual_body[MANUAL_PAGES] = {
   "Ammo is used by every attack; fuel by moving (and every turn for aircraft).#The Supply rate is higher near your cities and airfields and lower next to enemies.#Rain and snow slow ground units; bad weather limits aircraft. The status bar shows today's weather; Scenario info shows the forecast.#Rivers and mud are slow; roads are fast.",
   "Objectives (top screen) are the victory hexes. Start > Victory conditions shows exactly what wins.#Taking every objective early usually gives a Major Victory; on time a Minor one; otherwise a defeat.#In a campaign, a Major Victory can open a better next battle (or bonus prestige); your core units keep their experience.",
   "Autosave at the start of each of your turns (Continue on the title screen). Start > Save game: ten slots.#Options: forecast tap, auto-select, unit badges, hex grid, watch enemy turn, animation speed, sound.#Files live in sdmc:/3ds/lgeneral/. If something goes wrong, lgeneral.log and crash.txt there show what happened.#Install or update over Wi-Fi with ftpd.",
+  "Start > Encyclopedia: every unit and terrain type, with the numbers that matter.#UNITS: pick a class on the left (or L / R), then a unit. The top screen shows its cost, years in service, movement, initiative, spotting, range, attack against each target type, defenses, special abilities and how to use it. Nation cycles the countries.#TERRAIN: movement cost for each movement type, how deep units dig in, initiative limits and supply - for any weather (L / R).#From the Unit list, hold a unit (or tap Encyclopedia) to open its page.",
   "- Soften a strong position with artillery or bombers before the main attack.#- Keep fighters over your bombers.#- Put infantry in towns and forests; keep tanks in the open.#- Never end a turn with a transport next to the enemy.#- Watch the turn limit: take the objectives, not every enemy unit.#- Use Supply before low ammo becomes no ammo.#- LGeneral is GPL software by Michael Speck; 3DS port: lgeneral-3ds.",
 };
 static const char *const manual_chapter_name[MANUAL_CHAPTERS] = {
@@ -58,8 +60,9 @@ static const char *const manual_chapter_name[MANUAL_CHAPTERS] = {
   "11. Supply, fuel, weather",
   "12. Winning and campaigns",
   "13. Saving, options, files",
-  "14. Strategy tips",
+  "14. Encyclopedia",
+  "15. Strategy tips",
 };
 static const int manual_chapter_page[MANUAL_CHAPTERS] = {
-  0, 1, 3, 4, 5, 6, 8, 10, 11, 12, 13, 15, 16, 17, 18
+  0, 1, 3, 4, 5, 6, 8, 10, 11, 12, 13, 15, 16, 17, 18, 19
 };

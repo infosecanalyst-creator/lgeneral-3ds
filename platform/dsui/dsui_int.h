@@ -31,6 +31,7 @@ typedef struct {
     int up;               /* touch ended this frame */
     int long_press;       /* fired once when held still >= 450ms */
     int was_long;         /* the current/just-ended touch fired a long-press */
+    int swallow;          /* ignore the rest of this touch (its release is not a tap) */
     Uint32 down_time;
 } DSInput;
 extern DSInput in;
@@ -39,7 +40,7 @@ extern DSInput in;
 enum {
     UM_NONE = 0, UM_TITLE, UM_MENU, UM_CONFIRM, UM_PURCHASE, UM_SPLIT, UM_PAGES,
     UM_SCENLIST, UM_SCENSETUP, UM_CAMPLIST, UM_SLOTS, UM_OPTIONS, UM_UNITLIST,
-    UM_OVERVIEW, UM_CAMPBRIEF, UM_STATUS, UM_MANUAL
+    UM_OVERVIEW, UM_CAMPBRIEF, UM_STATUS, UM_MANUAL, UM_PEDIA
 };
 extern int ui_mode;
 extern int ds_zoom_level;   /* 0 = 50%, 1 = 75%, 2 = 100% */
@@ -81,6 +82,7 @@ void scr_open_overview( void );
 void scr_open_campbrief( void );
 void scr_open_help( void );
 void scr_open_manual( void );
+void scr_open_pedia( Unit_Lib_Entry *show );   /* encyclopedia; optional entry to open at */
 void scr_close( void );
 void scr_draw_top( void );
 void scr_draw_bottom( void );

@@ -868,7 +868,7 @@ static void title_input( void )
    Game menu (Start)
    ====================================================================== */
 enum { G_RESUME = 1, G_UNITS, G_PURCHASE, G_DEPLOY, G_INFO, G_CONDS, G_SAVE, G_LOAD,
-       G_OPTIONS, G_HELP, G_DISBAND, G_ENDTURN, G_RESTART, G_QUIT };
+       G_OPTIONS, G_HELP, G_DISBAND, G_ENDTURN, G_RESTART, G_QUIT, G_PEDIA };
 
 void scr_open_game_menu( void )
 {
@@ -886,6 +886,7 @@ void scr_open_game_menu( void )
     lst_add( "Save game", 0, G_SAVE, dsb_status() == DSB_STATUS_NONE && !dsb_deploy_turn() );
     lst_add( "Load game", 0, G_LOAD, 1 );
     lst_add( "Options", 0, G_OPTIONS, 1 );
+    lst_add( "Encyclopedia", "units, terrain", G_PEDIA, unit_lib && unit_lib->count > 0 );
     lst_add( "Manual", 0, G_HELP, 1 );
     lst_add( "Disband selected unit", 0, G_DISBAND, cur_unit && cur_unit->unused );
     if ( dsb_status() == DSB_STATUS_DEPLOY ) lst_add( "Finish deployment", 0, G_ENDTURN, 1 );
@@ -913,6 +914,7 @@ static void menu_input( void )
         case G_LOAD: scr_open_slots( 0 ); break;
         case G_OPTIONS: scr_open_options(); break;
         case G_HELP: scr_open_help(); break;
+        case G_PEDIA: scr_open_pedia( 0 ); break;
         case G_DISBAND: scr_close(); dsb_press( ID_DISBAND ); break;
         case G_ENDTURN: scr_close(); ds_end_turn_request(); break;
         case G_RESTART: scr_open_confirm( "Restart this scenario from the beginning?", 0, restart_yes ); break;
@@ -945,16 +947,29 @@ void scr_open_unitlist( void )
                 lst_add( u->name, r, n_items + 1, 1 );
             }
         }
-    lst_buttons( "Back", 0, 0 );
+    lst_buttons( "Back", "Encyclopedia", 0 );
     ui_mode = UM_UNITLIST;
     ds_mark_all();
 }
 
 static void unitlist_input( void )
 {
-    int r = list_input();
+    int r;
+    /* hold on a row (or the Encyclopedia button) = open that unit's encyclopedia page */
+    if ( in.long_press && in.down_y >= HEAD_H && in.down_y < DS_BOT_H - FOOT_H ) {
+        int i = scroll_top + ( in.down_y - HEAD_H ) / ROW_H;
+        if ( i < n_items ) sel = i;
+    }
+    r = list_input();
     if ( r == L_BACK || r == L_BTN0 ) { scr_open_game_menu(); return; }
-    if ( r > 0 && r <= n_items ) {
+    if ( ( r == L_BTN0 - 1 || in.long_press ) && n_items > 0 ) {
+        Unit *u = ulist[items[sel].id - 1];
+        Unit_Lib_Entry *e = u ? unit_lib_find( u->prop.id ) : 0;
+        in.tap = 0; if ( in.touch ) in.swallow = 1;
+        if ( e ) scr_open_pedia( e );
+        return;
+    }
+    if ( r > 0 && r <= n_items && !in.was_long ) {
         Unit *u = ulist[r - 1];
         scr_close();
         ds_clear_selection();
@@ -1291,11 +1306,328 @@ static void purchase_draw_top( void )
 /* ======================================================================
    Dispatch
    ====================================================================== */
+
+/* ======================================================================
+   Encyclopedia: every unit in the library and every terrain type,
+   with the numbers that matter and what they mean in play
+   ====================================================================== */
+#define PD_MAX 400
+static int pd_tab = 0;                 /* 0 units, 1 terrain */
+static int pd_classes[64], pd_nclasses = 0, pd_class = 0, pd_class_top = 0;
+static int pd_nation = -1;             /* -1 = all nations */
+static int pd_weather = 0;
+static Unit_Lib_Entry *pd_units[PD_MAX];
+static int pd_return = UM_NONE;
+
+static const char *pd_class_role( const char *id )
+{
+    static const struct { const char *id, *text; } roles[] = {
+        { "inf", "Holds ground. Best in towns, forests and hills, where it digs in and tanks must use their weak close defense. Slow; give it a transport." },
+        { "tank", "The main attack unit: hits soft and hard targets, moves fast in the open. Vulnerable in towns, forests and to anti-tank guns." },
+        { "recon", "Sees far and can move several times per turn. Use it to find the enemy, not to fight." },
+        { "antitank", "Strong attack and defense against tanks. Towed guns are slow; keep them behind the front line until needed." },
+        { "art", "Attacks from range and fires in support when an adjacent friend is attacked. Weak if attacked directly." },
+        { "antiair", "Shoots at aircraft attacking it or adjacent friends; some can fight ground targets too." },
+        { "airdef", "Heavy air defense: protects nearby units from bombers with support fire." },
+        { "fort", "Fixed fortification. Cannot move; very strong defense." },
+        { "fighter", "Destroys enemy aircraft and escorts your bombers (interceptor). Needs an airfield to refuel." },
+        { "tacbomb", "Attacks ground units and ships. Escort it with fighters; return to an airfield before fuel runs out." },
+        { "levbomb", "Heavy bomber: damages cities and airfields (cutting supply) and suppresses units." },
+        { "sub", "Attacks ships from hiding; only destroyers hunt it well." },
+        { "dest", "Fast warship: hunts submarines and supports the coast." },
+        { "cap", "Battleships and cruisers: long-range bombardment of the coast." },
+        { "carrier", "Floating airfield: aircraft can refuel and supply on it." },
+        { "landtrp", "Trucks and halftracks that carry infantry and guns quickly. Defend badly - unload before contact." },
+        { "airtrp", "Carries paratroops; they can drop anywhere." },
+        { "seatrp", "Carries ground units across water; very vulnerable." },
+        { 0, 0 } };
+    int i;
+    for ( i = 0; roles[i].id; i++ ) if ( strcmp( roles[i].id, id ) == 0 ) return roles[i].text;
+    return "";
+}
+
+static const char *pd_terrain_text( const char *name )
+{
+    static const struct { const char *name, *text; } tt[] = {
+        { "Clear", "Open ground: fast for tracked units and infantry, wheeled vehicles pay double. No cover - tank country." },
+        { "Road", "Every ground unit moves at its best rate. Roads decide how fast an offensive can go." },
+        { "Fields", "Hedged farmland: heavy going for vehicles, close-range fighting (initiative capped). Good for infantry." },
+        { "Rough", "Broken ground: slow, worse for wheeled vehicles; gives some cover." },
+        { "River", "Entering costs all movement. Engineers build bridges; attack across a river only with support." },
+        { "Forest", "Slow; units dig in deeply and fights are at close range (initiative capped), so infantry is at home here and tanks are not." },
+        { "Fortification", "Prepared defenses: units here start dug in." },
+        { "Airfield", "Aircraft refuel and supply here; ground units dig in well." },
+        { "Town", "The best defensive terrain: deep dig-in, initiative capped at 1 (no first-strike edge for the attacker), supply point, often an objective." },
+        { "Ocean", "Ships only, with aircraft above. Ground units need sea transport." },
+        { "Mountain", "Entering costs all movement; defenders dig in and are hard to see." },
+        { "Swamp", "Very slow; attacks from a swamp are weakened and units cannot dig in deeply." },
+        { "Desert", "Open and fast for tracked units; wheeled vehicles slower." },
+        { "Rough Desert", "Broken desert: slower, with some cover." },
+        { "Harbor", "Like a town for defense; ships and ground units supply here. Ports are often objectives." },
+        { 0, 0 } };
+    int i;
+    for ( i = 0; tt[i].name; i++ ) if ( strcasecmp( tt[i].name, name ) == 0 ) return tt[i].text;
+    return "";
+}
+
+static void pd_traits( Unit_Lib_Entry *e, char *t, int n )
+{
+    static const struct { int flag; const char *txt; } fl[] = {
+        { RECON, "moves several times a turn" }, { ARTILLERY, "support fire for neighbours" },
+        { AIR_DEFENSE, "anti-air support fire" }, { INTERCEPTOR, "escorts bombers" },
+        { BOMBER, "needs fighter escort" }, { BRIDGE_ENG, "bridges rivers" },
+        { IGNORE_ENTR, "ignores entrenchment" }, { ANTI_TANK, "bonus vs tanks" },
+        { PARACHUTE, "paradrops anywhere" }, { ATTACK_FIRST, "must attack before moving" },
+        { SUPPR_FIRE, "mainly suppresses" }, { CARPET_BOMBING, "carpet-bombs cities" },
+        { JET, "jet" }, { GROUND_TRSP_OK, "can use trucks" }, { AIR_TRSP_OK, "can be air-lifted" },
+        { CARRIER_OK, "can use carriers" }, { DIVING, "submerges" }, { 0, 0 } };
+    int i;
+    t[0] = 0;
+    for ( i = 0; fl[i].flag; i++ )
+        if ( e->flags & fl[i].flag ) {
+            if ( t[0] ) strncat( t, ",  ", n - strlen( t ) - 1 );
+            strncat( t, fl[i].txt, n - strlen( t ) - 1 );
+        }
+}
+
+static int pd_count_class( int c )
+{
+    Unit_Lib_Entry *e;
+    int k = 0;
+    list_reset( unit_lib );
+    while ( ( e = list_next( unit_lib ) ) )
+        if ( e->class == c && ( pd_nation < 0 || e->nation == pd_nation ) ) k++;
+    return k;
+}
+
+static void pd_build( void )
+{
+    int keep = sel, n = 0, k;
+    char r[32];
+    lst_init( "", 2 );
+    if ( pd_tab == 0 ) {
+        Unit_Lib_Entry *e;
+        list_x = PU_CLASS_W; list_w = DS_BOT_W - PU_CLASS_W;
+        pd_nclasses = 0;
+        for ( k = 0; k < unit_class_count && pd_nclasses < 64; k++ )
+            if ( pd_count_class( k ) > 0 ) pd_classes[pd_nclasses++] = k;
+        if ( pd_class >= pd_nclasses ) pd_class = 0;
+        snprintf( list_title, sizeof list_title, "%s", pd_nclasses ? unit_classes[pd_classes[pd_class]].name : "No units" );
+        if ( pd_nclasses ) {
+            list_reset( unit_lib );
+            while ( ( e = list_next( unit_lib ) ) && n < PD_MAX )
+                if ( e->class == pd_classes[pd_class] && ( pd_nation < 0 || e->nation == pd_nation ) ) {
+                    snprintf( r, sizeof r, "%d-%02d", e->start_year % 100, e->last_year % 100 );
+                    pd_units[n++] = e;
+                    lst_add( e->name, r, n, 1 );
+                }
+        }
+    }
+    else {
+        snprintf( list_title, sizeof list_title, "Terrain  (%s)", weather_type_count ? weather_types[pd_weather].name : "" );
+        for ( k = 0; k < terrain_type_count && k < MAX_ITEMS; k++ ) lst_add( terrain_types[k].name, 0, k + 1, 1 );
+    }
+    lst_buttons( "Close", pd_tab == 0 ? "Terrain" : "Units", pd_tab == 0 ? "Nation" : "Weather" );
+    sel = keep; list_clamp();
+}
+
+void scr_open_pedia( Unit_Lib_Entry *show )
+{
+    if ( !unit_lib || !unit_classes ) return;
+    if ( ui_mode != UM_PEDIA ) pd_return = ui_mode;
+    if ( pd_weather >= weather_type_count ) pd_weather = 0;
+    if ( scen_info && ui_mode != UM_PEDIA ) pd_weather = cur_weather;
+    sel = 0;
+    if ( show ) {
+        int k;
+        pd_tab = 0; pd_nation = -1;
+        pd_build();
+        for ( k = 0; k < pd_nclasses; k++ ) if ( pd_classes[k] == show->class ) pd_class = k;
+        pd_build();
+        for ( k = 0; k < n_items; k++ ) if ( pd_units[k] == show ) sel = k;
+        list_clamp();
+    }
+    else pd_build();
+    ui_mode = UM_PEDIA;
+    ds_mark_all();
+}
+
+static void pedia_input( void )
+{
+    int r, rows = ( DS_BOT_H - HEAD_H - FOOT_H ) / PU_CLASS_ROW;
+    if ( pd_tab == 0 ) {
+        if ( in.pressed & ( K_L | K_R ) ) {
+            pd_class = ( pd_class + ( ( in.pressed & K_R ) ? 1 : pd_nclasses - 1 ) ) % ( pd_nclasses ? pd_nclasses : 1 );
+            sel = 0; pd_build(); return;
+        }
+        if ( in.tap && in.tap_x < PU_CLASS_W ) {
+            int i = pd_class_top + ( in.tap_y - HEAD_H ) / PU_CLASS_ROW;
+            if ( in.tap_y >= HEAD_H && ( in.tap_y - HEAD_H ) / PU_CLASS_ROW < rows && i < pd_nclasses ) { pd_class = i; sel = 0; pd_build(); }
+            return;
+        }
+        if ( in.drag && in.down_x < PU_CLASS_W ) {
+            static int acc = 0;
+            acc += in.drag_dy;
+            while ( acc <= -PU_CLASS_ROW ) { acc += PU_CLASS_ROW; if ( pd_class_top + rows < pd_nclasses ) pd_class_top++; }
+            while ( acc >= PU_CLASS_ROW ) { acc -= PU_CLASS_ROW; if ( pd_class_top > 0 ) pd_class_top--; }
+            return;
+        }
+        if ( pd_class < pd_class_top ) pd_class_top = pd_class;
+        if ( pd_class >= pd_class_top + rows ) pd_class_top = pd_class - rows + 1;
+    }
+    else if ( in.pressed & ( K_L | K_R ) ) {
+        pd_weather = ( pd_weather + ( ( in.pressed & K_R ) ? 1 : weather_type_count - 1 ) ) % ( weather_type_count ? weather_type_count : 1 );
+        pd_build(); return;
+    }
+    r = list_input();
+    if ( r == L_BACK || r == L_BTN0 ) {
+        if ( pd_return == UM_MENU ) scr_open_game_menu();
+        else if ( pd_return == UM_UNITLIST ) scr_open_unitlist();
+        else if ( pd_return == UM_TITLE ) scr_open_title();
+        else scr_close();
+    }
+    else if ( r == L_BTN0 - 1 ) { pd_tab = !pd_tab; sel = 0; pd_build(); }
+    else if ( r == L_BTN0 - 2 ) {
+        if ( pd_tab == 0 ) {
+            /* cycle: all nations, then each nation that has units */
+            int k, start = pd_nation;
+            for ( k = 0; k <= nation_count; k++ ) {
+                pd_nation = ( pd_nation + 2 ) % ( nation_count + 1 ) - 1;
+                if ( pd_nation < 0 ) break;
+                {
+                    Unit_Lib_Entry *e; int any = 0;
+                    list_reset( unit_lib );
+                    while ( ( e = list_next( unit_lib ) ) ) if ( e->nation == pd_nation ) { any = 1; break; }
+                    if ( any ) break;
+                }
+            }
+            (void)start;
+            pd_class = 0; pd_class_top = 0;
+        }
+        else pd_weather = ( pd_weather + 1 ) % ( weather_type_count ? weather_type_count : 1 );
+        sel = 0; pd_build();
+    }
+}
+
+static void pedia_draw_bottom( void )
+{
+    int i, rows = ( DS_BOT_H - HEAD_H - FOOT_H ) / PU_CLASS_ROW;
+    int x = DS_BOT_X, y = DS_BOT_Y;
+    draw_list();
+    if ( pd_tab != 0 ) return;
+    dg_fill( x, y, PU_CLASS_W, DS_BOT_H, DC_PANEL );
+    dg_fill( x, y, PU_CLASS_W - 2, HEAD_H - 2, DC_PANEL2 );
+    dg_text_fit( &dsfont_small, x + 4, y + 6, PU_CLASS_W - 8, DC_ACCENT,
+                 pd_nation < 0 ? "All nations" : nations[pd_nation].name );
+    for ( i = 0; i < rows && pd_class_top + i < pd_nclasses; i++ ) {
+        int c = pd_class_top + i, ry = y + HEAD_H + i * PU_CLASS_ROW;
+        int down = ds_pressed( x + 2, ry, PU_CLASS_W - 4, PU_CLASS_ROW - 2 );
+        if ( c == pd_class || down ) dg_fill( x + 2, ry, PU_CLASS_W - 4, PU_CLASS_ROW - 2, down ? 0x5b80b8 : 0x34507a );
+        dg_text_fit( &dsfont_small, x + 6, ry + 5, PU_CLASS_W - 10, c == pd_class ? DC_TEXT : DC_DIM,
+                     unit_classes[pd_classes[c]].name );
+    }
+}
+
+static void pd_stat( int x, int y, const char *label, int v )
+{
+    char t[16];
+    dg_text( &dsfont_small, x, y + 2, DC_DIM, label );
+    snprintf( t, sizeof t, "%d", v );
+    dg_text( &dsfont_bold, x + 52, y, DC_TEXT, t );
+}
+
+static void pedia_draw_top( void )
+{
+    char t[300];
+    int x = 4, y = 4, w = DS_W - 8, h = DS_TOP_H - 8, i, row;
+    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
+    dg_panel( x, y, w, h );
+    dg_clip( x + 1, y + 1, w - 2, h - 2 );
+    if ( pd_tab == 0 ) {
+        Unit_Lib_Entry *e = ( n_items > 0 && sel < n_items ) ? pd_units[items[sel].id - 1] : 0;
+        if ( !e ) { dg_text( &dsfont_body, x + 8, y + 8, DC_DIM, "No unit selected." ); dg_noclip(); return; }
+        if ( e->icon ) dg_blit( e->icon, 0, 0, e->icon_w, e->icon_h, x + 6, y + 6 );
+        dg_text_fit( &dsfont_title, x + 74, y + 4, w - 80, DC_ACCENT, e->name );
+        snprintf( t, sizeof t, "%s  -  %s  -  %d/%d to %d  -  cost %d", ds_class_name( e->class ),
+                  e->nation >= 0 ? nations[e->nation].name : "any", e->start_month, e->start_year, e->last_year, e->cost );
+        dg_text_fit( &dsfont_small, x + 74, y + 26, w - 80, DC_DIM, t );
+        snprintf( t, sizeof t, "Moves %d (%s)%s", e->mov, mov_types[e->mov_type].name, e->fuel ? "" : ", no fuel needed" );
+        dg_text_fit( &dsfont_body, x + 74, y + 40, w - 80, DC_TEXT, t );
+        row = y + 60;
+        pd_stat( x + 8,   row, "Initiative", e->ini );
+        pd_stat( x + 100, row, "Spotting", e->spt );
+        pd_stat( x + 192, row, "Range", e->rng );
+        pd_stat( x + 284, row, "Attacks", e->atk_count );
+        row += 18;
+        pd_stat( x + 8,   row, "Ammo", e->ammo );
+        pd_stat( x + 100, row, "Fuel", e->fuel );
+        pd_stat( x + 192, row, "Def gnd", e->def_grnd );
+        pd_stat( x + 284, row, "Def air", e->def_air );
+        row += 18;
+        pd_stat( x + 8, row, "Def close", e->def_cls );
+        t[0] = 0;
+        for ( i = 0; i < trgt_type_count && i < TARGET_TYPE_LIMIT; i++ ) {
+            char s2[40];
+            if ( e->atks[i] < 0 ) snprintf( s2, sizeof s2, "%s%s -", i ? "   " : "Attack:  ", trgt_types[i].name );
+            else snprintf( s2, sizeof s2, "%s%s %d", i ? "   " : "Attack:  ", trgt_types[i].name, e->atks[i] );
+            strncat( t, s2, sizeof t - strlen( t ) - 1 );
+        }
+        dg_text_fit( &dsfont_bold, x + 100, row, w - 106, DC_TEXT, t );
+        row += 20;
+        pd_traits( e, t, sizeof t );
+        if ( t[0] ) { dg_text_fit( &dsfont_small, x + 8, row, w - 16, DC_GOOD, t ); row += 14; }
+        dg_text_wrap( &dsfont_body, x + 8, row, w - 16, y + h - row - 4, DC_TEXT,
+                      pd_class_role( unit_classes[e->class].id ), 0 );
+    }
+    else {
+        Terrain_Type *tt = ( n_items > 0 && sel < n_items ) ? &terrain_types[items[sel].id - 1] : 0;
+        int wtr = pd_weather, col;
+        if ( !tt ) { dg_noclip(); return; }
+        if ( tt->images && tt->images[wtr] ) dg_blit( tt->images[wtr], 0, 0, hex_w, hex_h, x + 6, y + 6 );
+        dg_text_fit( &dsfont_title, x + 74, y + 4, w - 80, DC_ACCENT, tt->name );
+        snprintf( t, sizeof t, "Weather: %s   (L / R or Weather to change)", weather_types[wtr].name );
+        dg_text_fit( &dsfont_small, x + 74, y + 26, w - 80, DC_DIM, t );
+        if ( tt->max_ini < 99 )
+            snprintf( t, sizeof t, "Dig-in %d to %d   Sight cost %d   Initiative max %d", tt->min_entr, tt->max_entr, tt->spt[wtr], tt->max_ini );
+        else
+            snprintf( t, sizeof t, "Dig-in %d to %d   Sight cost %d", tt->min_entr, tt->max_entr, tt->spt[wtr] );
+        dg_text_fit( &dsfont_body, x + 74, y + 40, w - 80, DC_TEXT, t );
+        row = y + 62;
+        dg_text( &dsfont_small, x + 8, row, DC_DIM, "MOVEMENT COST  ( - = impassable,  all = uses every point )" );
+        row += 14; col = 0;
+        for ( i = 0; i < mov_type_count; i++ ) {
+            int c = terrain_get_mov( tt, i, wtr ), cx = x + 8 + ( col % 4 ) * 96, cy = row + ( col / 4 ) * 16;
+            char v[12];
+            if ( c == 0 ) snprintf( v, sizeof v, "-" ); else if ( c < 0 ) snprintf( v, sizeof v, "all" ); else snprintf( v, sizeof v, "%d", c );
+            dg_text_fit( &dsfont_small, cx, cy + 2, 60, DC_DIM, mov_types[i].name );
+            dg_text( &dsfont_bold, cx + 64, cy, c == 0 ? DC_ENEMY : DC_TEXT, v );
+            col++;
+        }
+        row += ( ( col + 3 ) / 4 ) * 16 + 4;
+        t[0] = 0;
+        {
+            int f = tt->flags[wtr];
+            if ( f & SUPPLY_GROUND ) strcat( t, "ground supply,  " );
+            if ( f & SUPPLY_AIR ) strcat( t, "air supply,  " );
+            if ( f & SUPPLY_SHIPS ) strcat( t, "ship supply,  " );
+            if ( f & RIVER ) strcat( t, "river (engineers bridge it),  " );
+            if ( f & INF_CLOSE_DEF ) strcat( t, "tanks fight infantry at close range,  " );
+            if ( f & NO_SPOTTING ) strcat( t, "blocks sight,  " );
+            if ( f & BAD_SIGHT ) strcat( t, "ranged fire is harder,  " );
+            if ( f & SWAMP ) strcat( t, "attacks from here are weakened,  " );
+            if ( t[0] ) t[strlen( t ) - 3] = 0;
+        }
+        if ( t[0] ) { dg_text_wrap( &dsfont_small, x + 8, row, w - 16, 28, DC_GOOD, t, 0 ); row += dg_text_lines( &dsfont_small, w - 16, t ) * 13 + 4; }
+        dg_text_wrap( &dsfont_body, x + 8, row, w - 16, y + h - row - 4, DC_TEXT, pd_terrain_text( tt->name ), 0 );
+    }
+    dg_noclip();
+}
+
 /* low 16 bits: things only the bottom screen shows (scroll positions); high bits: selection, which the top shows */
 unsigned scr_view_key( void )
 {
-    unsigned lo = ( (unsigned)scroll_top * 31u + (unsigned)pu_class_top * 7u ) & 0xffff;
-    unsigned hi = ( (unsigned)sel * 131u + (unsigned)page_i * 17u + (unsigned)pu_class * 3u + (unsigned)man_page * 257u + (unsigned)ui_mode ) & 0xffff;
+    unsigned lo = ( (unsigned)scroll_top * 31u + (unsigned)pu_class_top * 7u + (unsigned)pd_class_top * 11u ) & 0xffff;
+    unsigned hi = ( (unsigned)sel * 131u + (unsigned)page_i * 17u + (unsigned)pu_class * 3u + (unsigned)man_page * 257u + (unsigned)pd_class * 5u + (unsigned)pd_tab * 1031u + (unsigned)pd_weather * 13u + (unsigned)ui_mode ) & 0xffff;
     return ( hi << 16 ) | lo;
 }
 
@@ -1309,6 +1641,7 @@ void scr_input( void )
         case UM_SPLIT: split_input(); break;
         case UM_PAGES: pages_input(); break;
         case UM_MANUAL: manual_input(); break;
+        case UM_PEDIA: pedia_input(); break;
         case UM_SCENLIST: case UM_CAMPLIST: scenlist_input(); break;
         case UM_SCENSETUP: scensetup_input(); break;
         case UM_SLOTS: slots_input(); break;
@@ -1326,6 +1659,7 @@ void scr_draw_bottom( void )
         case UM_STATUS: ds_status_draw_bottom(); break;
         case UM_CONFIRM: confirm_draw_bottom(); break;
         case UM_PAGES: pages_draw_bottom(); break;
+        case UM_PEDIA: pedia_draw_bottom(); break;
         case UM_PURCHASE: purchase_draw_bottom(); break;
         case UM_OVERVIEW:
             dg_fill( DS_BOT_X, DS_BOT_Y, DS_BOT_W, DS_BOT_H, DC_BG );
@@ -1379,6 +1713,7 @@ void scr_draw_top( void )
         case UM_TITLE: title_draw_top(); break;
         case UM_PAGES: pages_draw_top(); break;
         case UM_MANUAL: manual_draw_top(); break;
+        case UM_PEDIA: pedia_draw_top(); break;
         case UM_SCENLIST: case UM_CAMPLIST: scenlist_draw_top(); break;
         case UM_SCENSETUP: top_text_panel( 0, sel_info, 0 ); break;
         case UM_CAMPBRIEF: campbrief_draw_top(); break;

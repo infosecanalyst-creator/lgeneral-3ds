@@ -115,7 +115,12 @@ Autosave at the start of each of your turns (Continue on the title screen). Star
 Options: forecast tap, auto-select, unit badges, hex grid, watch enemy turn, animation speed, sound.
 Files live in sdmc:/3ds/lgeneral/. If something goes wrong, lgeneral.log and crash.txt there show what happened.
 Install or update over Wi-Fi with ftpd.
-== 14. STRATEGY TIPS
+== 14. ENCYCLOPEDIA
+Start > Encyclopedia: every unit and terrain type, with the numbers that matter.
+UNITS: pick a class on the left (or L / R), then a unit. The top screen shows its cost, years in service, movement, initiative, spotting, range, attack against each target type, defenses, special abilities and how to use it. Nation cycles the countries.
+TERRAIN: movement cost for each movement type, how deep units dig in, initiative limits and supply - for any weather (L / R).
+From the Unit list, hold a unit (or tap Encyclopedia) to open its page.
+== 15. STRATEGY TIPS
 - Soften a strong position with artillery or bombers before the main attack.
 - Keep fighters over your bombers.
 - Put infantry in towns and forests; keep tanks in the open.

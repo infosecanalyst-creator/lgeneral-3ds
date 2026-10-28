@@ -226,7 +226,8 @@ void ds_read_input( void )
     /* a release without dragging is a tap however long it was held (buttons must never ignore a firm press);
        the map ignores taps that already fired a long-press */
     in.was_long = lp_fired;
-    if ( in.up && !in.drag ) { in.tap = 1; in.tap_x = in.down_x; in.tap_y = in.down_y; }
+    if ( in.up && !in.drag && !in.swallow ) { in.tap = 1; in.tap_x = in.down_x; in.tap_y = in.down_y; }
+    if ( in.up || !t ) in.swallow = 0;
     in.touch = t;
     if ( t ) { in.tx = tx; in.ty = ty; }
     prev_touch = t;
