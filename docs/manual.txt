@@ -1,5 +1,5 @@
 == LGENERAL 3DS MANUAL
-Panzer General-style turn-based strategy, World War II and World War I, played with the stylus.
+Turn-based hex strategy, played with the stylus.
 
 Using this manual:
 Tap a chapter on the touch screen to jump to it.
@@ -10,7 +10,7 @@ Open it any time from the title screen or Start > Manual.
 == 1. STARTING A GAME  (1/2)
 The title screen:
 Continue - resumes the autosave made at the start of your last turn.
-New scenario - pick a set (Panzer General 1939-45 or K.u.k General WWI), then a battle. The top screen shows its briefing.
+New scenario - pick a set (K.u.k General WWI, or any other set you installed), then a battle. The top screen shows its briefing.
 New campaign - a chain of battles; your core units carry over and results decide the next battle.
 Load game - one of the ten save slots.
 == 1. STARTING A GAME  (2/2)

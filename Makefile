@@ -12,8 +12,8 @@ include $(DEVKITARM)/3ds_rules
 TARGET          := lgeneral
 BUILD           := build
 APP_TITLE       := LGeneral
-APP_DESCRIPTION := Panzer General engine (3DS port)
-APP_AUTHOR      := Michael Speck / 3DS port
+APP_DESCRIPTION := Open-source turn-based strategy
+APP_AUTHOR      := LGeneral (M. Speck) / 3DS port
 APP_ICON        := platform/3ds/icon.png
 
 # DSUI = native dual-screen front end (platform/dsui); make DSUI=0 for the plain 640x480 port

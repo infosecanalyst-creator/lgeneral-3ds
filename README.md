@@ -1,8 +1,13 @@
 # LGeneral 3DS
 
-Port of [LGeneral](https://lgames.sourceforge.io/LGeneral/) 1.4.4 (Panzer General engine, GPL) to the New 3DS XL.
-Game data (converted Panzer General + K.u.k General WWI) comes from the official LGeneral Windows package and is
-not stored in this repo: run `bash tools/fetch-data.sh` once to put it in `./data`.
+Unofficial port of [LGeneral](https://lgames.sourceforge.io/LGeneral/) 1.4.4 (an open-source, GPL turn-based
+strategy engine in the style of the classic 1990s wargames) to the New 3DS XL.
+
+**Game data.** No game data is stored in this repo. `bash tools/fetch-data.sh` downloads the official LGeneral
+1.4.4 Windows package and installs only the free data: **K.u.K. General**, a World War I campaign by Steve McGuba
+(CC BY-SA 3.0), with LGeneral's own themes and sounds. The package also contains Panzer General scenarios converted
+from SSI's commercial game; they are left out unless you run `WITH_PG=1 bash tools/fetch-data.sh`. Only do that if
+you own Panzer General: this project grants no licence to that data.
 
 GitHub Actions builds `lgeneral.3dsx` on every push (Actions tab → latest run → artifact).
 
@@ -23,7 +28,7 @@ stereo output). `make DSUI=0` still builds the old single-screen 640x480 port.
 ## Build (devkitPro MSYS2 shell)
 
     cd /c/devkitPro/3ds-projects/lgeneral-3ds
-    bash tools/fetch-data.sh      # first time only
+    bash tools/fetch-data.sh      # first time only (WITH_PG=1 adds Panzer General data you own)
     bash build-lgeneral.sh
 
 Output goes to one place only: `C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral\`.
@@ -75,3 +80,17 @@ Green dot = unit can still move, amber dot = can still attack.
 `make -f Makefile.desktop` builds a 400x480 desktop simulator of the 3DS screens (`./lgeneral-sim`;
 mouse on the lower half = stylus; keys: z=A x=B s=X a=Y q=L w=R 1/2=ZL/ZR Enter=Start Tab=Select,
 arrows = D-pad, ijkl = C-stick). `make -f Makefile.desktop SIM=0` builds the plain PC version.
+
+## Licence
+
+The code is GPL-2.0-or-later, the same as LGeneral; see [`LICENSE`](LICENSE) and `lgeneral/COPYING`.
+`lgeneral/` is LGeneral 1.4.4 by Michael Speck and contributors, modified for the 3DS (the changes are in
+this repository's history; the 3DS front end lives in `platform/`). The app icon was drawn for this project.
+
+Data installed by `tools/fetch-data.sh` keeps its own licence: K.u.K. General is CC BY-SA 3.0 (Steve McGuba),
+the sounds are CC BY-SA 3.0 (Markus Koschany); both licences are copied into `data/licenses/`.
+
+## Disclaimer
+
+Not affiliated with or endorsed by SSI, Ubisoft, the LGeneral authors or Nintendo. *Panzer General* is a
+trademark of its owner and is named here only to describe optional data files.
