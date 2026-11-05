@@ -22,6 +22,7 @@
 #endif
 
 SDL_Surface *ds_screen = 0, *ds_canvas = 0;
+int ds_swapped = 0;
 int ds_top_dirty = 1, ds_bot_dirty = 1;
 int ui_mode = UM_NONE;
 int dsui_quick_attack = 0;
@@ -216,6 +217,9 @@ void ds_read_input( void )
     in.pressed = h & ~in.held;
     in.released = in.held & ~h;
     in.held = h;
+    if ( in.pressed & K_ZL ) { ds_swapped = !ds_swapped; ds_top_dirty = ds_bot_dirty = 1; }   /* ZL swaps the screens at any time */
+    in.pressed &= ~K_ZL; in.held &= ~K_ZL; h &= ~K_ZL;
+    if ( ds_swapped ) t = 0;   /* the touch screen shows the dashboard while swapped */
     in.rep = in.pressed;
 #define K_SCROLL ( K_PUP | K_PDOWN | K_CUP | K_CDOWN )
     {   /* sticks scroll the manual a page at a time: slower repeat so a page can be read */
@@ -864,8 +868,7 @@ static void map_input( void )
     /* --- buttons --- */
     if ( in.pressed & K_START ) { scr_open_game_menu(); return; }
     if ( ( in.pressed & K_SELECT ) && !deploy ) { scr_open_overview(); return; }
-    if ( in.pressed & K_ZL ) { set_zoom( ds_zoom_level - 1 ); dsui_options_save(); }
-    if ( in.pressed & K_ZR ) { set_zoom( ds_zoom_level + 1 ); dsui_options_save(); }
+    if ( in.pressed & K_ZR ) { set_zoom( ds_zoom_level >= 2 ? 0 : ds_zoom_level + 1 ); dsui_options_save(); }   /* ZL is the screen swap */
     if ( in.held & ( K_CUP | K_CDOWN | K_CLEFT | K_CRIGHT ) ) {
         int s = B2C( 6 );
         pan_view( ( in.held & K_CLEFT ) ? -s : ( in.held & K_CRIGHT ) ? s : 0,
@@ -1641,6 +1644,34 @@ static unsigned state_sig( void )
     return s;
 }
 
+/* ZL: show the game map on the top screen (centred) and the dashboard, squeezed to fit, on the touch screen.
+   The logical frame in ds_screen stays untouched: we swap into it, send it, then put it back. */
+static void present_swapped( void )
+{
+    int pitch = ds_screen->pitch / 2, x, y;
+    Uint16 *px = (Uint16 *)ds_screen->pixels;
+    static Uint16 topbuf[400 * 240], botbuf[320 * 240];
+    if ( SDL_MUSTLOCK( ds_screen ) ) SDL_LockSurface( ds_screen );
+    for ( y = 0; y < 240; y++ ) {
+        for ( x = 0; x < 400; x++ ) topbuf[y * 400 + x] = px[y * pitch + x];
+        for ( x = 0; x < 320; x++ ) botbuf[y * 320 + x] = px[( DS_BOT_Y + y ) * pitch + DS_BOT_X + x];
+    }
+    for ( y = 0; y < 240; y++ ) {
+        for ( x = 0; x < 400; x++ ) px[y * pitch + x] = ( x >= 40 && x < 360 ) ? botbuf[y * 320 + x - 40] : 0;
+        for ( x = 0; x < 400; x++ ) px[( DS_BOT_Y + y ) * pitch + x] = 0;
+        for ( x = 0; x < 320; x++ ) px[( DS_BOT_Y + y ) * pitch + DS_BOT_X + x] = topbuf[y * 400 + x * 5 / 4];
+    }
+    if ( SDL_MUSTLOCK( ds_screen ) ) SDL_UnlockSurface( ds_screen );
+    SDL_UpdateRect( ds_screen, 0, 0, 0, 0 );
+    if ( SDL_MUSTLOCK( ds_screen ) ) SDL_LockSurface( ds_screen );
+    for ( y = 0; y < 240; y++ ) {
+        for ( x = 0; x < 400; x++ ) px[y * pitch + x] = topbuf[y * 400 + x];
+        for ( x = 0; x < 400; x++ ) px[( DS_BOT_Y + y ) * pitch + x] = 0;
+        for ( x = 0; x < 320; x++ ) px[( DS_BOT_Y + y ) * pitch + DS_BOT_X + x] = botbuf[y * 320 + x];
+    }
+    if ( SDL_MUSTLOCK( ds_screen ) ) SDL_UnlockSurface( ds_screen );
+}
+
 void ds_present( void )
 {
     unsigned sig;
@@ -1668,7 +1699,8 @@ void ds_present( void )
         draw_top();
         dg_noclip();
     }
-    SDL_UpdateRect( ds_screen, 0, 0, 0, 0 );
+    if ( ds_swapped ) present_swapped();
+    else SDL_UpdateRect( ds_screen, 0, 0, 0, 0 );
     ds_top_dirty = ds_bot_dirty = 0;
 }
 

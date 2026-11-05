@@ -400,7 +400,7 @@ static const char *help_text =
     "BUTTONS#"
     "Circle Pad / D-pad: move the hex cursor.  A: act on the cursor hex.  B: cancel / deselect.#"
     "X: undo the last move.  Y: end turn.  R: next unit with orders.  Hold L: all enemy threat.#"
-    "ZL / ZR: zoom out / in (50%, 75%, 100%).  C-stick: pan.  Start: menu.  Select: overview map.##"
+    "ZL: swap the screens (map on top, dashboard on touch).  ZR: zoom 50/75/100%.  C-stick: pan.  Start: menu.  Select: overview map.##"
     "MARKERS#"
     "Green dot: unit can still move.  Amber dot: unit can still attack.#"
     "Hexes outside a selected unit's reach are darkened.##"

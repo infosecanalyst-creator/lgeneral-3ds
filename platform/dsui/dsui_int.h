@@ -48,6 +48,7 @@ extern int ds_zoom_level;   /* 0 = 50%, 1 = 75%, 2 = 100% */
 
 /* shared state (dsui.c) */
 extern SDL_Surface *ds_screen, *ds_canvas;
+extern int ds_swapped;
 extern int ds_top_dirty, ds_bot_dirty;
 void ds_present( void );
 void ds_mark_all( void );
