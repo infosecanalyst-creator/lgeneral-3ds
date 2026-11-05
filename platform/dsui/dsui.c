@@ -218,8 +218,13 @@ void ds_read_input( void )
     in.held = h;
     in.rep = in.pressed;
 #define K_SCROLL ( K_PUP | K_PDOWN | K_CUP | K_CDOWN )
-    if ( in.pressed & ( K_DIRS | K_SCROLL ) ) rep_time = now + 300;
-    else if ( ( h & ( K_DIRS | K_SCROLL ) ) && now >= rep_time ) { in.rep |= h & ( K_DIRS | K_SCROLL ); rep_time = now + 75; }
+    {   /* sticks scroll the manual a page at a time: slower repeat so a page can be read */
+        static Uint32 srep_time = 0;
+        if ( in.pressed & K_SCROLL ) { in.rep |= in.pressed & K_SCROLL; srep_time = now + 450; }
+        else if ( ( h & K_SCROLL ) && now >= srep_time ) { in.rep |= h & K_SCROLL; srep_time = now + 350; }
+    }
+    if ( in.pressed & K_DIRS ) rep_time = now + 300;
+    else if ( ( h & K_DIRS ) && now >= rep_time ) { in.rep |= h & K_DIRS; rep_time = now + 75; }
 
     in.down = t && !prev_touch;
     in.up = !t && prev_touch;
