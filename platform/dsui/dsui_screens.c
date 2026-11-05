@@ -420,7 +420,7 @@ void scr_open_help( void ) { scr_open_manual(); }
    Manual (docs/manual.txt, compiled in): page on top, chapters below
    ====================================================================== */
 #include "dsui_manual.h"
-static int man_page = 0, man_return = UM_NONE;
+static int man_page = 0, man_return = UM_NONE, man_scroll_t = 0;
 
 static int man_chapter_of( int page )
 {
@@ -466,12 +466,14 @@ static void man_goto( int page )
 static void manual_input( void )
 {
     int r, c = man_chapter_of( man_page );
-    unsigned lr = in.rep & ( K_LEFT | K_RIGHT );
-    if ( lr & K_LEFT ) { man_goto( man_page - 1 ); return; }
-    if ( lr & K_RIGHT ) { man_goto( man_page + 1 ); return; }
+    /* Circle Pad / C-Stick up and down scroll the text (hold to keep scrolling) */
+    if ( in.rep & ( K_PDOWN | K_CDOWN ) ) { man_scroll_t = 0; man_goto( man_page + 1 ); return; }
+    if ( in.rep & ( K_PUP | K_CUP ) ) { man_scroll_t = 0; man_goto( man_page - 1 ); return; }
+    /* D-Pad moves between the section buttons (left/right the same as up/down) */
+    if ( in.rep & K_LEFT ) { if ( c > 0 ) sel = c - 1; list_clamp(); return; }
+    if ( in.rep & K_RIGHT ) { if ( c + 1 < MANUAL_CHAPTERS ) sel = c + 1; list_clamp(); return; }
     if ( in.pressed & K_L ) { man_goto( manual_chapter_page[c > 0 ? c - 1 : 0] ); return; }
     if ( in.pressed & K_R ) { if ( c + 1 < MANUAL_CHAPTERS ) man_goto( manual_chapter_page[c + 1] ); return; }
-    in.rep &= ~( K_LEFT | K_RIGHT );
     r = list_input();
     if ( r == L_BTN0 ) man_goto( man_page - 1 );
     else if ( r == L_BTN0 - 2 ) man_goto( man_page + 1 );

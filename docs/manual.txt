@@ -2,9 +2,10 @@
 Turn-based hex strategy, played with the stylus.
 
 Using this manual:
-Tap a chapter on the touch screen to jump to it.
-< Prev / Next >, or the D-pad left / right = page.
-L / R = previous / next chapter.   B = close.
+Circle Pad or C-Stick up / down: scroll the text (hold to keep scrolling).
+D-pad: move between the chapter buttons on the touch screen.
+L / R: previous / next chapter.   Tap a chapter to jump to it.
+B or START: close.
 
 Open it any time from the title screen or Start > Manual.
 == 1. STARTING A GAME  (1/2)

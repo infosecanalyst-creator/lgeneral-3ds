@@ -14,7 +14,8 @@ enum {
     K_L = 1 << 4, K_R = 1 << 5, K_ZL = 1 << 6, K_ZR = 1 << 7,
     K_START = 1 << 8, K_SELECT = 1 << 9,
     K_UP = 1 << 10, K_DOWN = 1 << 11, K_LEFT = 1 << 12, K_RIGHT = 1 << 13,
-    K_CUP = 1 << 14, K_CDOWN = 1 << 15, K_CLEFT = 1 << 16, K_CRIGHT = 1 << 17
+    K_CUP = 1 << 14, K_CDOWN = 1 << 15, K_CLEFT = 1 << 16, K_CRIGHT = 1 << 17,
+    K_PUP = 1 << 18, K_PDOWN = 1 << 19      /* Circle Pad only (the manual scrolls with it) */
 };
 #define K_DIRS ( K_UP | K_DOWN | K_LEFT | K_RIGHT )
 

@@ -24,7 +24,7 @@ static const char *const manual_title[MANUAL_PAGES] = {
   "15. STRATEGY TIPS",
 };
 static const char *const manual_body[MANUAL_PAGES] = {
-  "Turn-based hex strategy, played with the stylus.##Using this manual:#Tap a chapter on the touch screen to jump to it.#< Prev / Next >, or the D-pad left / right = page.#L / R = previous / next chapter.   B = close.##Open it any time from the title screen or Start > Manual.",
+  "Turn-based hex strategy, played with the stylus.##Using this manual:#Circle Pad or C-Stick up / down: scroll the text (hold to keep scrolling).#D-pad: move between the chapter buttons on the touch screen.#L / R: previous / next chapter.   Tap a chapter to jump to it.#B or START: close.##Open it any time from the title screen or Start > Manual.",
   "The title screen:#Continue - resumes the autosave made at the start of your last turn.#New scenario - pick a set (K.u.k General WWI, or any other set you installed), then a battle. The top screen shows its briefing.#New campaign - a chain of battles; your core units carry over and results decide the next battle.#Load game - one of the ten save slots.",
   "Scenario setup, before you press Start:#Each side - tap to switch Human / CPU. Keep at least one side Human (you get a warning if not).#Fog of war - enemies are hidden until spotted.#Supply, Weather - realistic rules; leave on.#Deployment turn - place your units before turn 1.#Purchase - buy units with prestige.",
   "BOTTOM (touch): the battle map. You play everything here with the stylus.#TOP: your dashboard.#- status bar: turn, weather, side, prestige#- the selected unit's card#- the battle forecast before an attack#- the hex or enemy under your cursor#- messages and combat results#- minimap (white box = what you see) and objectives",

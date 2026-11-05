@@ -186,10 +186,20 @@ void ds_read_input( void )
     if ( k & KEY_L ) h |= K_L;           if ( k & KEY_R ) h |= K_R;
     if ( k & KEY_ZL ) h |= K_ZL;         if ( k & KEY_ZR ) h |= K_ZR;
     if ( k & KEY_START ) h |= K_START;   if ( k & KEY_SELECT ) h |= K_SELECT;
+    if ( ui_mode == UM_MANUAL ) {
+        /* manual: the D-Pad moves between the section buttons, the sticks only scroll the text */
+        if ( k & KEY_DUP ) h |= K_UP;
+        if ( k & KEY_DDOWN ) h |= K_DOWN;
+        if ( k & KEY_DLEFT ) h |= K_LEFT;
+        if ( k & KEY_DRIGHT ) h |= K_RIGHT;
+        if ( k & KEY_CPAD_UP ) h |= K_PUP;
+        if ( k & KEY_CPAD_DOWN ) h |= K_PDOWN;
+    } else {
     if ( k & ( KEY_DUP | KEY_CPAD_UP ) ) h |= K_UP;
     if ( k & ( KEY_DDOWN | KEY_CPAD_DOWN ) ) h |= K_DOWN;
     if ( k & ( KEY_DLEFT | KEY_CPAD_LEFT ) ) h |= K_LEFT;
     if ( k & ( KEY_DRIGHT | KEY_CPAD_RIGHT ) ) h |= K_RIGHT;
+    }
     if ( k & KEY_CSTICK_UP ) h |= K_CUP;       if ( k & KEY_CSTICK_DOWN ) h |= K_CDOWN;
     if ( k & KEY_CSTICK_LEFT ) h |= K_CLEFT;   if ( k & KEY_CSTICK_RIGHT ) h |= K_CRIGHT;
     if ( k & KEY_TOUCH ) {
@@ -207,8 +217,9 @@ void ds_read_input( void )
     in.released = in.held & ~h;
     in.held = h;
     in.rep = in.pressed;
-    if ( in.pressed & K_DIRS ) rep_time = now + 300;
-    else if ( ( h & K_DIRS ) && now >= rep_time ) { in.rep |= h & K_DIRS; rep_time = now + 75; }
+#define K_SCROLL ( K_PUP | K_PDOWN | K_CUP | K_CDOWN )
+    if ( in.pressed & ( K_DIRS | K_SCROLL ) ) rep_time = now + 300;
+    else if ( ( h & ( K_DIRS | K_SCROLL ) ) && now >= rep_time ) { in.rep |= h & ( K_DIRS | K_SCROLL ); rep_time = now + 75; }
 
     in.down = t && !prev_touch;
     in.up = !t && prev_touch;
