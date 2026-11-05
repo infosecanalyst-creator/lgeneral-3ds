@@ -19,14 +19,15 @@ jobs:
           git config --global --add safe.directory '*'
       - uses: actions/checkout@v4
       - name: SDL 1.2 for 3DS
-        run: dkp-pacman -Sy --noconfirm --needed 3ds-sdl 3ds-sdl_mixer
+        run: dkp-pacman -Sy --noconfirm --needed 3ds-sdl 3ds-sdl_mixer 2>&1 | tee libs.log; test ${PIPESTATUS[0]} -eq 0
+        shell: bash
       - name: Build
         run: make -j$(nproc) 2>&1 | tee build.log; test -f lgeneral.3dsx
       - name: Collect
         if: always()
         run: |
           mkdir -p out
-          cp lgeneral.3dsx build.log out/ 2>/dev/null || true
+          cp lgeneral.3dsx libs.log build.log out/ 2>/dev/null || true
           echo "$GITHUB_SHA" > out/SOURCE_COMMIT
       - name: Publish to builds branch
         if: always()
