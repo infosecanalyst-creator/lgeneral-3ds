@@ -48,6 +48,7 @@ void dsui_status_screen( const char *title, const char *text, int timeout_ms );
 /* options shared with the engine */
 extern int dsui_quick_attack;
 extern int dsui_auto_advance;
+extern int dsui_lefty;            /* Options: left-handed play (D-pad and A/B/X/Y swap) */
 
 #endif /* DSUI */
 #endif

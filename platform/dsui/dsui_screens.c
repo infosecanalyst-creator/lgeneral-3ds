@@ -183,10 +183,11 @@ void dsui_options_load( void )
     FILE *f;
     snprintf( path, sizeof path, "%s/dsui.conf", config.dir_name );
     if ( ( f = fopen( path, "r" ) ) ) {
-        int a = 0, b = 1, z = 1;
-        int n = fscanf( f, "quick_attack=%d auto_advance=%d zoom=%d", &a, &b, &z );
+        int a = 0, b = 1, z = 1, l = 0;
+        int n = fscanf( f, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d", &a, &b, &z, &l );
         if ( n >= 2 ) { dsui_quick_attack = a; dsui_auto_advance = b; }
         if ( n >= 3 && z >= 0 && z <= 2 ) ds_zoom_level = z;
+        if ( n >= 4 ) dsui_lefty = l != 0;
         fclose( f );
     }
 }
@@ -196,7 +197,7 @@ void dsui_options_save( void )
     FILE *f;
     snprintf( path, sizeof path, "%s/dsui.conf", config.dir_name );
     if ( ( f = fopen( path, "w" ) ) ) {
-        fprintf( f, "quick_attack=%d auto_advance=%d zoom=%d\n", dsui_quick_attack, dsui_auto_advance, ds_zoom_level );
+        fprintf( f, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d\n", dsui_quick_attack, dsui_auto_advance, ds_zoom_level, dsui_lefty );
         fclose( f );
     }
 }
@@ -224,7 +225,8 @@ static void build_options( void )
         lst_add( "Sound", t, 7, audio_ok );
     }
 #endif
-    lst_add( "Done", 0, 99, 1 );   /* a row instead of a footer button, so every option fits without scrolling */
+    lst_add( "Left hand (D-pad and A/B/X/Y swap)", dsui_lefty ? "On" : "Off", 8, 1 );
+    lst_add( "Done", 0, 99, 1 );   /* a row instead of a footer button (the list scrolls; B also saves and leaves) */
     sel = keep; list_clamp();
 }
 
@@ -239,12 +241,13 @@ static void options_draw_top( void )
         "Watch the enemy turn#On: follow each enemy move on the map.#Off: the enemy turn is much faster.",
         "Animation speed#How fast moves and battles play: x1 to x4.",
         "Sound#Tap to step through Off, 25%, 50%, 75%, 100%.",
+        "Left hand#On: the D-pad and the Y, A, B, X buttons swap jobs (Y up, A right, B down, X left, and the reverse) so the stylus can be held in the left hand.",
         "Done#Save these settings and go back."
     };
     int id = ( n_items > 0 && sel < n_items ) ? items[sel].id : 0, k;
     char t[400], *nl;
-    k = ( id == 99 ) ? 7 : id - 1;
-    if ( k < 0 || k > 7 ) k = 7;
+    k = ( id == 99 ) ? 8 : id - 1;
+    if ( k < 0 || k > 8 ) k = 8;
     snprintf( t, sizeof t, "%s", help[k] );
     nl = strchr( t, '#' );
     if ( nl ) { *nl = 0; top_text_panel( t, nl + 1, 0 ); }
@@ -269,6 +272,7 @@ static void options_input( void )
         case 4: config.grid = !config.grid; dsb_redraw(); break;
         case 5: config.show_cpu_turn = !config.show_cpu_turn; break;
         case 6: config.anim_speed = config.anim_speed >= 4 ? 1 : config.anim_speed + 1; break;
+        case 8: dsui_lefty = !dsui_lefty; break;
 #ifdef WITH_SOUND
         case 7:
             if ( !config.sound_on ) { config.sound_on = 1; config.sound_volume = 32; }

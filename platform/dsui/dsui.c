@@ -26,6 +26,7 @@ int ds_swapped = 0;
 int ds_top_dirty = 1, ds_bot_dirty = 1;
 int ui_mode = UM_NONE;
 int dsui_quick_attack = 0;
+int dsui_lefty = 0;
 int dsui_auto_advance = 1;
 DSInput in;
 
@@ -182,6 +183,18 @@ void ds_read_input( void )
     Uint32 now = SDL_GetTicks();
 #ifdef __3DS__
     u32 k = hidKeysHeld();
+    if ( dsui_lefty ) {
+        /* left-handed play: Y<->D-up, A<->D-right, B<->D-down, X<->D-left */
+        static const u32 pr[4][2] = { { KEY_Y, KEY_DUP }, { KEY_A, KEY_DRIGHT }, { KEY_B, KEY_DDOWN }, { KEY_X, KEY_DLEFT } };
+        u32 m = k;
+        int i;
+        for ( i = 0; i < 4; i++ ) m &= ~( pr[i][0] | pr[i][1] );
+        for ( i = 0; i < 4; i++ ) {
+            if ( k & pr[i][0] ) m |= pr[i][1];
+            if ( k & pr[i][1] ) m |= pr[i][0];
+        }
+        k = m;
+    }
     if ( k & KEY_A ) h |= K_A;           if ( k & KEY_B ) h |= K_B;
     if ( k & KEY_X ) h |= K_X;           if ( k & KEY_Y ) h |= K_Y;
     if ( k & KEY_L ) h |= K_L;           if ( k & KEY_R ) h |= K_R;

@@ -114,7 +114,7 @@ Taking every objective early usually gives a Major Victory; on time a Minor one;
 In a campaign, a Major Victory can open a better next battle (or bonus prestige); your core units keep their experience.
 == 13. SAVING, OPTIONS, FILES
 Autosave at the start of each of your turns (Continue on the title screen). Start > Save game: ten slots.
-Options: forecast tap, auto-select, unit badges, hex grid, watch enemy turn, animation speed, sound.
+Options: forecast tap, auto-select, unit badges, hex grid, watch enemy turn, animation speed, sound, and Left hand (swaps the D-pad with Y, A, B and X: Y is up, A is right, B is down, X is left, and the reverse; for holding the stylus in the left hand; remembered).
 Files live in sdmc:/3ds/lgeneral/. If something goes wrong, lgeneral.log and crash.txt there show what happened.
 Install or update over Wi-Fi with ftpd.
 == 14. ENCYCLOPEDIA
