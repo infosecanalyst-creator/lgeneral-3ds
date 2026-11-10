@@ -110,9 +110,10 @@ static void draw_list( void )
         dg_fill( x + list_w - 3, y + HEAD_H + ty, 2, th, DC_BORDER );
     }
     if ( n_btns ) {
-        int bw = ( list_w - 8 - ( n_btns - 1 ) * 6 ) / n_btns;
+        /* UI rule 11: 26 px tall, 6 px apart, 6 px from the screen edges */
+        int bw = ( list_w - 12 - ( n_btns - 1 ) * 6 ) / n_btns;
         for ( i = 0; i < n_btns; i++ )
-            ds_button( x + 4 + i * ( bw + 6 ), y + DS_BOT_H - FOOT_H + 4, bw, FOOT_H - 8, btns[i], btn_on[i], i == n_btns - 1 && btn_on[i] );
+            ds_button( x + 6 + i * ( bw + 6 ), y + DS_BOT_H - FOOT_H + 4, bw, FOOT_H - 10, btns[i], btn_on[i], i == n_btns - 1 && btn_on[i] );
     }
 }
 
@@ -1270,7 +1271,7 @@ static void purchase_draw_bottom( void )
             dg_text_fit( &dsfont_small, x + 6, ry + 5, PU_CLASS_W - 10, c == pu_class ? DC_TEXT : DC_DIM,
                          unit_classes[pu_classes[c]].name );
         }
-        ds_button( x + 2, y + DS_BOT_H - FOOT_H + 4, PU_CLASS_W - 6, FOOT_H - 8,
+        ds_button( x + 6, y + DS_BOT_H - FOOT_H + 4, PU_CLASS_W - 10, FOOT_H - 10,
                    pu_affordable_only ? "Affordable" : "All units", 1, pu_affordable_only );
     }
     else dg_text_wrap( &dsfont_small, x + 6, y + HEAD_H + 6, PU_CLASS_W - 12, 120, DC_DIM,

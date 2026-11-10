@@ -840,8 +840,8 @@ static void deploy_input( void )
     if ( in.pressed & K_Y ) dsb_press( ID_APPLY_DEPLOY );
     if ( in.tap && in.tap_x < DEP_W ) {
         ds_click();
-        if ( in.tap_y >= DS_BOT_H - 60 && in.tap_y < DS_BOT_H - 30 ) dsb_press( ID_APPLY_DEPLOY );
-        else if ( in.tap_y >= DS_BOT_H - 30 ) { if ( !dsb_deploy_turn() ) dsb_press( ID_CANCEL_DEPLOY ); }
+        if ( in.tap_y >= DS_BOT_H - 64 && in.tap_y < DS_BOT_H - 34 ) dsb_press( ID_APPLY_DEPLOY );
+        else if ( in.tap_y >= DS_BOT_H - 34 ) { if ( !dsb_deploy_turn() ) dsb_press( ID_CANCEL_DEPLOY ); }
         else {
             i = dep_scroll + in.tap_y / DEP_ROW;
             if ( in.tap_y / DEP_ROW < rows && i < n ) dsb_deploy_select( list_get( left_deploy_units, i ) );
@@ -1229,8 +1229,9 @@ static void draw_deploy_strip( void )
         snprintf( t, sizeof t, "%d/%d", dep_scroll + 1, n );
         dg_text_c( &dsfont_small, x + DEP_W / 2, DS_BOT_Y + rows * DEP_ROW + 2, DC_DIM, t );
     }
-    ds_button( x + 2, DS_BOT_Y + DS_BOT_H - 58, DEP_W - 4, 26, "Done", 1, n == 0 );
-    ds_button( x + 2, DS_BOT_Y + DS_BOT_H - 29, DEP_W - 4, 26, "Cancel", !dsb_deploy_turn(), 0 );
+    /* UI rule 11: 26 px tall, 4 px apart, 6 px from the screen edges */
+    ds_button( x + 6, DS_BOT_Y + DS_BOT_H - 62, DEP_W - 8, 26, "Done", 1, n == 0 );
+    ds_button( x + 6, DS_BOT_Y + DS_BOT_H - 32, DEP_W - 8, 26, "Cancel", !dsb_deploy_turn(), 0 );
 }
 
 static void draw_bottom_map( void )
