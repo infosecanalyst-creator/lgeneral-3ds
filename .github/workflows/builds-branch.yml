@@ -30,7 +30,7 @@ jobs:
           cp lgeneral.3dsx libs.log build.log out/ 2>/dev/null || true
           echo "$GITHUB_SHA" > out/SOURCE_COMMIT
       - name: Publish to builds branch
-        if: always()
+        if: success()   # never replace the last good build with a failed one (e.g. when pkg.devkitpro.org refuses the runner)
         run: |
           cd out
           git init -q -b builds
