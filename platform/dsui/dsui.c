@@ -785,6 +785,7 @@ enum { ACT_SUPPLY, ACT_UNDO, ACT_AIR, ACT_MERGE, ACT_SPLIT, ACT_INFO, ACT_COUNT 
 static const char *act_names[ACT_COUNT] = { "Supply", "Undo", "Air", "Merge", "Split", "Info" };
 #define STRIP_W 44
 #define STRIP_X ( DS_BOT_W - STRIP_W )
+static int strip_hit( int ty );   /* defined with draw_strip() */
 
 static int strip_visible( void )
 {
@@ -930,7 +931,7 @@ static void map_input( void )
 
     /* --- touch --- */
     if ( strip_visible() && in.tap && in.tap_x >= STRIP_X ) {
-        int a = in.tap_y / ( DS_BOT_H / ACT_COUNT );
+        int a = strip_hit( in.tap_y );
         if ( a >= 0 && a < ACT_COUNT && act_enabled( a ) ) ds_click();
         if ( a >= 0 && a < ACT_COUNT ) do_act( a );
         return;
@@ -1195,18 +1196,28 @@ void ds_button( int x, int y, int w, int h, const char *label, int enabled, int 
     dg_text_c( &dsfont_bold, x + w / 2 + down, y + ( h - dsfont_bold.height ) / 2 + down, enabled ? DC_TEXT : DC_DISABLED, label );
 }
 
+/* UI rule 11: the action buttons are 34 px tall, 4 px apart and 6 px from the screen edges */
+#define STRIP_BH 34
+#define STRIP_GAP 4
+#define STRIP_Y0 6
+static int strip_hit( int ty )
+{
+    int a = ( ty - STRIP_Y0 + STRIP_GAP / 2 ) / ( STRIP_BH + STRIP_GAP );
+    return ty < STRIP_Y0 - STRIP_GAP / 2 || a >= ACT_COUNT ? -1 : a;
+}
 static void draw_strip( void )
 {
-    int i, bh = DS_BOT_H / ACT_COUNT;
+    int i;
     int x = DS_BOT_X + STRIP_X;
     dg_fill_a( x, DS_BOT_Y, STRIP_W, DS_BOT_H, DC_BG, 200 );
     for ( i = 0; i < ACT_COUNT; i++ ) {
         int en = act_enabled( i );
-        int y = DS_BOT_Y + i * bh;
-        int down = en && ds_pressed( x + 2, y + 2, STRIP_W - 3, bh - 3 );
-        dg_fill( x + 2, y + 2, STRIP_W - 3, bh - 3, down ? 0x5b80b8 : en ? DC_PANEL2 : DC_PANEL );
-        dg_rect( x + 2, y + 2, STRIP_W - 3, bh - 3, en ? DC_BORDER : DC_PANEL2 );
-        dg_text_c( &dsfont_small, x + STRIP_W / 2 + 1, y + ( bh - dsfont_small.height ) / 2, en ? DC_TEXT : DC_DISABLED, act_names[i] );
+        int y = DS_BOT_Y + STRIP_Y0 + i * ( STRIP_BH + STRIP_GAP );
+        int bx = x + 2, bw = STRIP_W - 8;
+        int down = en && ds_pressed( bx, y, bw, STRIP_BH );
+        dg_fill( bx, y, bw, STRIP_BH, down ? 0x5b80b8 : en ? DC_PANEL2 : DC_PANEL );
+        dg_rect( bx, y, bw, STRIP_BH, en ? DC_BORDER : DC_PANEL2 );
+        dg_text_c( &dsfont_small, bx + bw / 2 + down, y + ( STRIP_BH - dsfont_small.height ) / 2 + down, en ? DC_TEXT : DC_DISABLED, act_names[i] );
     }
 }
 
