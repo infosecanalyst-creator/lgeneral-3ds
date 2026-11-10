@@ -169,10 +169,10 @@ void scr_close( void )
 
 static void top_text_panel( const char *title, const char *text, int skip )
 {
-    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
-    dg_panel( 6, 6, DS_W - 12, DS_TOP_H - 12 );
-    if ( title ) dg_text_fit( &dsfont_title, 16, 12, DS_W - 32, DC_ACCENT, title );
-    if ( text ) dg_text_wrap( &dsfont_body, 16, title ? 36 : 14, DS_W - 32, DS_TOP_H - ( title ? 48 : 26 ), DC_TEXT, text, skip );
+    dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
+    dg_panel( 6, 6, ds_tw - 12, DS_TOP_H - 12 );
+    if ( title ) dg_text_fit( &dsfont_title, 16, 12, ds_tw - 32, DC_ACCENT, title );
+    if ( text ) dg_text_wrap( &dsfont_body, 16, title ? 36 : 14, ds_tw - 32, DS_TOP_H - ( title ? 48 : 26 ), DC_TEXT, text, skip );
 }
 
 /* ======================================================================
@@ -319,7 +319,7 @@ static void pages_layout( void )
         char *brk = strstr( p, "##" ), save = 0;
         int n;
         if ( brk ) { save = *brk; *brk = 0; }
-        n = dg_text_lines( &dsfont_body, DS_W - 32, p );
+        n = dg_text_lines( &dsfont_body, ds_tw - 32, p );
         if ( n < 1 ) n = 1;
         if ( used > 0 && used + 1 + n > page_lines_per && page_n < MAX_PAGES ) {
             page_start[page_n++] = line; used = 0;     /* new page starts with this paragraph */
@@ -355,11 +355,11 @@ static void pages_draw_top( void )
 {
     int lines = ( page_i + 1 < page_n ) ? page_start[page_i + 1] - page_skip : page_lines_per;
     if ( lines > page_lines_per ) lines = page_lines_per;
-    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
-    dg_panel( 6, 6, DS_W - 12, DS_TOP_H - 12 );
-    dg_text_fit( &dsfont_title, 16, 12, DS_W - 32, DC_ACCENT, page_title );
+    dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
+    dg_panel( 6, 6, ds_tw - 12, DS_TOP_H - 12 );
+    dg_text_fit( &dsfont_title, 16, 12, ds_tw - 32, DC_ACCENT, page_title );
     if ( page_text )
-        dg_text_wrap( &dsfont_body, 16, 36, DS_W - 32, lines * ( dsfont_body.height + 1 ), DC_TEXT, page_text, page_skip );
+        dg_text_wrap( &dsfont_body, 16, 36, ds_tw - 32, lines * ( dsfont_body.height + 1 ), DC_TEXT, page_text, page_skip );
 }
 
 static void pages_draw_bottom( void )
@@ -452,7 +452,7 @@ void scr_open_manual( void )
     {   /* authoring check: report pages that do not fit the top screen */
         int i, cap = ( DS_TOP_H - 48 ) / ( dsfont_body.height + 1 );
         for ( i = 0; i < MANUAL_PAGES; i++ ) {
-            int n = dg_text_lines( &dsfont_body, DS_W - 32, manual_body[i] );
+            int n = dg_text_lines( &dsfont_body, ds_tw - 32, manual_body[i] );
             if ( n > cap ) printf( "manual: page %d (%s) has %d lines, %d fit\n", i, manual_title[i], n, cap );
         }
     }
@@ -492,12 +492,12 @@ static void manual_input( void )
 static void manual_draw_top( void )
 {
     char t[24];
-    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
-    dg_panel( 6, 6, DS_W - 12, DS_TOP_H - 12 );
+    dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
+    dg_panel( 6, 6, ds_tw - 12, DS_TOP_H - 12 );
     snprintf( t, sizeof t, "%d / %d", man_page + 1, MANUAL_PAGES );
-    dg_text_r( &dsfont_small, DS_W - 16, 15, DC_DIM, t );
-    dg_text_fit( &dsfont_title, 16, 12, DS_W - 32 - 50, DC_ACCENT, manual_title[man_page] );
-    dg_text_wrap( &dsfont_body, 16, 36, DS_W - 32, DS_TOP_H - 48, DC_TEXT, manual_body[man_page], 0 );
+    dg_text_r( &dsfont_small, ds_tw - 16, 15, DC_DIM, t );
+    dg_text_fit( &dsfont_title, 16, 12, ds_tw - 32 - 50, DC_ACCENT, manual_title[man_page] );
+    dg_text_wrap( &dsfont_body, 16, 36, ds_tw - 32, DS_TOP_H - 48, DC_TEXT, manual_body[man_page], 0 );
 }
 
 /* ======================================================================
@@ -840,14 +840,14 @@ void scr_open_title( void )
 
 static void title_draw_top( void )
 {
-    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
+    dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
     if ( gui && gui->bkgnd ) {
         int sw = gui->bkgnd->w, sh = gui->bkgnd->h;
         int dh = DS_TOP_H, dw = sw * dh / ( sh ? sh : 1 );
-        if ( dw > DS_W ) { dw = DS_W; dh = sh * dw / sw; }
-        dg_blit_scaled( gui->bkgnd, 0, 0, sw, sh, ( DS_W - dw ) / 2, ( DS_TOP_H - dh ) / 2, dw, dh );
+        if ( dw > ds_tw ) { dw = ds_tw; dh = sh * dw / sw; }
+        dg_blit_scaled( gui->bkgnd, 0, 0, sw, sh, ( ds_tw - dw ) / 2, ( DS_TOP_H - dh ) / 2, dw, dh );
     }
-    dg_fill_a( 0, DS_TOP_H - 22, DS_W, 22, DC_BG, 190 );
+    dg_fill_a( 0, DS_TOP_H - 22, ds_tw, 22, DC_BG, 190 );
     dg_text( &dsfont_small, 6, DS_TOP_H - 17, DC_DIM, "LGeneral 1.4.4 (c) Michael Speck - GPL. 3DS edition." );
 }
 
@@ -1044,11 +1044,11 @@ static void campbrief_draw_top( void )
 {
     void *pane = dsb_camp_pane();
     const char *t = gui_message_pane_text( pane );
-    int total = t ? dg_text_lines( &dsfont_body, DS_W - 32, t ) : 0;
+    int total = t ? dg_text_lines( &dsfont_body, ds_tw - 32, t ) : 0;
     int lines = ( DS_TOP_H - 48 ) / ( dsfont_body.height + 1 );
     if ( brief_skip > total - 1 ) brief_skip = total > 0 ? total - 1 : 0;
     top_text_panel( "Briefing", t, brief_skip );
-    if ( total > lines ) dg_text_r( &dsfont_small, DS_W - 14, DS_TOP_H - 18, DC_DIM, "L / R: scroll" );
+    if ( total > lines ) dg_text_r( &dsfont_small, ds_tw - 14, DS_TOP_H - 18, DC_DIM, "L / R: scroll" );
 }
 
 /* ======================================================================
@@ -1282,7 +1282,7 @@ static void purchase_draw_top( void )
 {
     char t[160];
     int core = 0, aux = 0, lim;
-    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
+    dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
     ds_status_bar();
     lim = player_get_purchase_unit_limit( cur_player, &core, &aux );
     if ( lim < 0 ) snprintf( t, sizeof t, "Unit slots: unlimited" );
@@ -1292,7 +1292,7 @@ static void purchase_draw_top( void )
     if ( pu_ordered_view ) {
         if ( n_items > 0 ) {
             Unit *u = pu_reinf[items[sel].id - 1];
-            ds_entry_card( 4, 44, DS_W - 8, 150, &u->prop, u->prop.cost + ( u->trsp_prop.id ? u->trsp_prop.cost : 0 ),
+            ds_entry_card( 4, 44, ds_tw - 8, 150, &u->prop, u->prop.cost + ( u->trsp_prop.id ? u->trsp_prop.cost : 0 ),
                            u->trsp_prop.id ? u->trsp_prop.name : 0 );
         }
         else top_text_panel( 0, "Nothing ordered this turn.", 0 );
@@ -1302,11 +1302,11 @@ static void purchase_draw_top( void )
         if ( e ) {
             char note[80];
             snprintf( note, sizeof note, "%s", tr ? tr->name : ( e->flags & GROUND_TRSP_OK ) ? "no transporter" : "" );
-            ds_entry_card( 4, 44, DS_W - 8, 150, e, e->cost + ( tr ? tr->cost : 0 ), note );
+            ds_entry_card( 4, 44, ds_tw - 8, 150, e, e->cost + ( tr ? tr->cost : 0 ), note );
         }
         else dg_text( &dsfont_body, 12, 60, DC_DIM, "No units of this class available." );
     }
-    dg_text_wrap( &dsfont_small, 8, 200, DS_W - 16, 36, DC_DIM,
+    dg_text_wrap( &dsfont_small, 8, 200, ds_tw - 16, 36, DC_DIM,
                   "L/R: unit class.  X: ordered units.  Ordered units arrive next turn - deploy them from Start > Deploy units.", 0 );
 }
 
@@ -1546,8 +1546,8 @@ static void pd_stat( int x, int y, const char *label, int v )
 static void pedia_draw_top( void )
 {
     char t[300];
-    int x = 4, y = 4, w = DS_W - 8, h = DS_TOP_H - 8, i, row;
-    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
+    int x = 4, y = 4, w = ds_tw - 8, h = DS_TOP_H - 8, i, row;
+    dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
     dg_panel( x, y, w, h );
     dg_clip( x + 1, y + 1, w - 2, h - 2 );
     if ( pd_tab == 0 ) {
@@ -1730,7 +1730,7 @@ void scr_draw_top( void )
             break;
         case UM_UNITLIST:
             ds_status_bar();
-            if ( n_items > 0 ) ds_unit_card( 4, 24, DS_W - 8, 212, ulist[items[sel].id - 1], "UNIT", 1 );
+            if ( n_items > 0 ) ds_unit_card( 4, 24, ds_tw - 8, 212, ulist[items[sel].id - 1], "UNIT", 1 );
             break;
         case UM_OVERVIEW:
             ds_status_bar();
@@ -1739,14 +1739,14 @@ void scr_draw_top( void )
             break;
         case UM_SPLIT:
             ds_status_bar();
-            if ( cur_unit ) ds_unit_card( 4, 24, DS_W - 8, 212, cur_unit, "SPLIT", 1 );
+            if ( cur_unit ) ds_unit_card( 4, 24, ds_tw - 8, 212, cur_unit, "SPLIT", 1 );
             break;
         case UM_OPTIONS: options_draw_top(); break;
         default:
             ds_status_bar();
             if ( scen_info && ds_engine_ready() ) {
-                ds_minimap( 270, 24, 126, 150, 0 );
-                if ( cur_unit ) { ds_unit_card( 4, 24, 262, 104, cur_unit, "SELECTED", 0 ); menu_summary_top( 132, 104 ); }
+                if ( ds_tw >= 400 ) ds_minimap( 270, 24, 126, 150, 0 );
+                if ( cur_unit ) { ds_unit_card( 4, 24, ds_tw >= 400 ? 262 : ds_tw - 8, 104, cur_unit, "SELECTED", 0 ); menu_summary_top( 132, 104 ); }
                 else menu_summary_top( 24, 212 );
             }
             else title_draw_top();

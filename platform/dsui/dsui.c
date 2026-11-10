@@ -23,6 +23,7 @@
 
 SDL_Surface *ds_screen = 0, *ds_canvas = 0;
 int ds_swapped = 0;
+int ds_tw = 400;   /* width the top-screen content is laid out for: 320 when swapped onto the touch screen */
 int ds_ptr_x = DS_BOT_W / 2, ds_ptr_y = DS_BOT_H / 2;   /* touchpad pointer while swapped (map coordinates) */
 int ds_top_dirty = 1, ds_bot_dirty = 1;
 int ui_mode = UM_NONE;
@@ -1297,8 +1298,8 @@ void ds_status_bar( void )
 {
     char t[160], date[64];
     int x = 4;
-    dg_fill( 0, 0, DS_W, 20, DC_PANEL );
-    dg_hline( 0, 19, DS_W, DC_BORDER );
+    dg_fill( 0, 0, ds_tw, 20, DC_PANEL );
+    dg_hline( 0, 19, ds_tw, DC_BORDER );
     if ( !scen_info || !cur_player ) {
         dg_text( &dsfont_bold, 6, 3, DC_TEXT, "LGeneral" );
         return;
@@ -1306,11 +1307,17 @@ void ds_status_bar( void )
     scen_get_date( date );
     snprintf( t, sizeof t, "Turn %d/%d", turn + 1, scen_info->turn_limit );
     x += dg_text( &dsfont_bold, x, 3, DC_TEXT, t ) + 10;
-    x += dg_text( &dsfont_body, x, 3, DC_DIM, weather_types[cur_weather].name ) + 10;
-    snprintf( t, sizeof t, "%s", cur_player->name );
-    x += dg_text( &dsfont_body, x, 3, dsb_cpu_turn() ? DC_ENEMY : DC_FRIEND, t ) + 10;
-    snprintf( t, sizeof t, "Prestige %d", cur_player->cur_prestige );
-    dg_text_r( &dsfont_body, DS_W - 6, 3, DC_ACCENT, t );
+    {   /* the weather is dropped first when the bar is narrow (swapped onto the touch screen), so nothing overlaps */
+        char pr[48];
+        int room;
+        snprintf( pr, sizeof pr, "Prestige %d", cur_player->cur_prestige );
+        room = ds_tw - 6 - dg_text_w( &dsfont_body, pr ) - 10 - x - dg_text_w( &dsfont_body, cur_player->name ) - 10;
+        if ( dg_text_w( &dsfont_body, weather_types[cur_weather].name ) + 10 <= room )
+            x += dg_text( &dsfont_body, x, 3, DC_DIM, weather_types[cur_weather].name ) + 10;
+        snprintf( t, sizeof t, "%s", cur_player->name );
+        x += dg_text( &dsfont_body, x, 3, dsb_cpu_turn() ? DC_ENEMY : DC_FRIEND, t ) + 10;
+        dg_text_r( &dsfont_body, ds_tw - 6, 3, DC_ACCENT, pr );
+    }
 }
 
 void ds_unit_card( int x, int y, int w, int h, Unit *u, const char *title, int full )
@@ -1615,53 +1622,57 @@ static void objectives_box( int x, int y, int w, int h )
 static void draw_top( void )
 {
     int st = dsb_status();
+    const int CW = ds_tw >= 400 ? 262 : ds_tw - 8;   /* card width */
     dg_noclip();
-    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
+    dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
     if ( ui_mode != UM_NONE ) { scr_draw_top(); return; }
     if ( !engine_ready || !scen_info || setup.type == SETUP_RUN_TITLE ) { ds_status_bar(); return; }
     ds_status_bar();
-    /* right column: minimap + objectives */
-    ds_minimap( 270, 24, 126, 150, 0 );
-    objectives_box( 272, 180, 124, 56 );
+    /* right column: minimap + objectives (not when the dashboard is on the narrower touch screen:
+       the map is on the top screen then, and the cards take the full width) */
+    if ( ds_tw >= 400 ) {
+        ds_minimap( 270, 24, 126, 150, 0 );
+        objectives_box( 272, 180, 124, 56 );
+    }
 
     if ( dsb_cpu_turn() ) {
         int row = 30, i;
-        dg_panel( 4, 24, 262, 212 );
+        dg_panel( 4, 24, CW, 212 );
         dg_text( &dsfont_title, 12, row, DC_ENEMY, "Enemy turn" ); row += 22;
         dg_text( &dsfont_body, 12, row, DC_TEXT, cur_player ? cur_player->name : "" ); row += 24;
         for ( i = 0; i < msg_count; i++ ) {
-            dg_text_fit( &dsfont_body, 12, row, 246, i == 0 ? DC_WARN : DC_DIM, msgs[i] );
+            dg_text_fit( &dsfont_body, 12, row, CW - 16, i == 0 ? DC_WARN : DC_DIM, msgs[i] );
             row += 16;
         }
         return;
     }
     if ( st == DSB_STATUS_DEPLOY ) {
-        dg_panel( 4, 24, 262, 212 );
-        if ( deploy_unit ) ds_unit_card( 4, 24, 262, 104, deploy_unit, "DEPLOY", 0 );
-        dg_text_wrap( &dsfont_body, 12, 134, 246, 98, DC_TEXT,
+        dg_panel( 4, 24, CW, 212 );
+        if ( deploy_unit ) ds_unit_card( 4, 24, CW, 104, deploy_unit, "DEPLOY", 0 );
+        dg_text_wrap( &dsfont_body, 12, 134, CW - 16, 98, DC_TEXT,
                       "Tap a unit on the left, then tap a highlighted hex to place it. "
                       "Tap a placed unit to take it back. L/R pick the next unit. "
                       "Done (or Y) when finished.", 0 );
         return;
     }
     if ( detail_unit ) {
-        ds_unit_card( 4, 24, 262, 212, detail_unit, "UNIT DETAILS  (B to close)", 1 );
+        ds_unit_card( 4, 24, CW, 212, detail_unit, "UNIT DETAILS  (B to close)", 1 );
         return;
     }
     /* upper card: selected unit */
-    if ( cur_unit ) ds_unit_card( 4, 24, 262, 104, cur_unit, "SELECTED", 0 );
-    else if ( inspect_unit ) ds_unit_card( 4, 24, 262, 104, inspect_unit, "ENEMY  (red: move, orange: attack reach)", 0 );
+    if ( cur_unit ) ds_unit_card( 4, 24, CW, 104, cur_unit, "SELECTED", 0 );
+    else if ( inspect_unit ) ds_unit_card( 4, 24, CW, 104, inspect_unit, "ENEMY  (red: move, orange: attack reach)", 0 );
     else {
-        dg_panel( 4, 24, 262, 104 );
+        dg_panel( 4, 24, CW, 104 );
         dg_text( &dsfont_bold, 12, 30, DC_TEXT, "No unit selected" );
-        dg_text_wrap( &dsfont_small, 12, 50, 246, 70, DC_DIM,
+        dg_text_wrap( &dsfont_small, 12, 50, CW - 16, 70, DC_DIM,
                       "R: next unit with orders.  Green dot: can move.  Amber dot: can still attack.", 0 );
     }
     /* lower card */
-    if ( fc_target || fc_strat ) forecast_card( 4, 132, 262, 104 );
-    else if ( cur_unit && inspect_unit ) ds_unit_card( 4, 132, 262, 104, inspect_unit, "ENEMY - not in reach of the selected unit", 0 );
-    else if ( cursor_on && cur_mx >= 0 ) hex_card( 4, 132, 262, 104, cur_mx, cur_my );
-    else hints_card( 4, 132, 262, 104 );
+    if ( fc_target || fc_strat ) forecast_card( 4, 132, CW, 104 );
+    else if ( cur_unit && inspect_unit ) ds_unit_card( 4, 132, CW, 104, inspect_unit, "ENEMY - not in reach of the selected unit", 0 );
+    else if ( cursor_on && cur_mx >= 0 ) hex_card( 4, 132, CW, 104, cur_mx, cur_my );
+    else hints_card( 4, 132, CW, 104 );
 }
 
 /* signature of everything the panels show; redraw when it changes */
@@ -1681,7 +1692,7 @@ static unsigned state_sig( void )
     return s;
 }
 
-/* ZL: show the game map on the top screen (stretched to fill it) and the dashboard, squeezed to fit, on the touch screen.
+/* ZL: show the game map on the top screen (stretched to fill it) and the dashboard, laid out for 320 wide, on the touch screen.
    The logical frame in ds_screen stays untouched: we swap into it, send it, then put it back. */
 static void present_swapped( void )
 {
@@ -1696,7 +1707,7 @@ static void present_swapped( void )
     for ( y = 0; y < 240; y++ ) {
         for ( x = 0; x < 400; x++ ) px[y * pitch + x] = botbuf[y * 320 + x * 4 / 5];   /* UI rule 8: fill the top screen */
         for ( x = 0; x < 400; x++ ) px[( DS_BOT_Y + y ) * pitch + x] = 0;
-        for ( x = 0; x < 320; x++ ) px[( DS_BOT_Y + y ) * pitch + DS_BOT_X + x] = topbuf[y * 400 + x * 5 / 4];
+        for ( x = 0; x < 320; x++ ) px[( DS_BOT_Y + y ) * pitch + DS_BOT_X + x] = topbuf[y * 400 + x];   /* laid out at 320 already */
     }
     {   /* the touchpad pointer: a white arrow with a black edge */
         static const char *arrow[12] = { "X", "XX", "X.X", "X..X", "X...X", "X....X", "X.....X", "X..XXXX", "X.X", "XX", "X", "" };
@@ -1740,7 +1751,12 @@ void ds_present( void )
 #endif
     }
     if ( ds_top_dirty ) {
-        dg_clip( 0, 0, DS_W, DS_TOP_H );
+        /* swapped: lay the dashboard out again for the 320-wide touch screen at full text size
+           (readable when swapped, not squeezed) */
+        ds_tw = ds_swapped ? DS_BOT_W : 400;
+        dg_clip( 0, 0, 400, DS_TOP_H );
+        dg_fill( 0, 0, 400, DS_TOP_H, DC_BG );
+        dg_clip( 0, 0, ds_tw, DS_TOP_H );
         draw_top();
         dg_noclip();
     }
@@ -1840,10 +1856,10 @@ void dsui_status_screen( const char *title, const char *text, int timeout_ms )
 
 void ds_status_draw_top( void )
 {
-    dg_fill( 0, 0, DS_W, DS_TOP_H, DC_BG );
-    dg_panel( 10, 14, DS_W - 20, DS_TOP_H - 28 );
-    if ( status_title ) dg_text_c( &dsfont_title, DS_W / 2, 26, DC_ACCENT, status_title );
-    if ( status_text ) dg_text_wrap( &dsfont_body, 26, 54, DS_W - 52, DS_TOP_H - 80, DC_TEXT, status_text, 0 );
+    dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
+    dg_panel( 10, 14, ds_tw - 20, DS_TOP_H - 28 );
+    if ( status_title ) dg_text_c( &dsfont_title, ds_tw / 2, 26, DC_ACCENT, status_title );
+    if ( status_text ) dg_text_wrap( &dsfont_body, 26, 54, ds_tw - 52, DS_TOP_H - 80, DC_TEXT, status_text, 0 );
 }
 void ds_status_draw_bottom( void )
 {

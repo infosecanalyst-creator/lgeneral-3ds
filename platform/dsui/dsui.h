@@ -13,6 +13,7 @@
 #include <SDL.h>
 
 #define DS_W      400
+extern int ds_tw;   /* layout width of the top-screen content (400; 320 when swapped onto the touch screen) */
 #define DS_H      480
 #define DS_TOP_H  240
 #define DS_BOT_X  40
