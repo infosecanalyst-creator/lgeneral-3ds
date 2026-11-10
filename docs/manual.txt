@@ -45,7 +45,7 @@ B - cancel, deselect, back.    X - undo the last move.
 Y - end turn (warns if units can still act).
 R - next unit that still has orders.
 Hold L - every enemy's threat range.
-ZL - swap the screens: the map moves to the top screen and the dashboard to the touch screen (touch is off while swapped; play with the D-pad and A). ZL works at any time.
+ZL - swap the screens: the map moves to the top screen and the dashboard to the touch screen (the map fills the top screen; the touch screen becomes a touchpad: slide to move the pointer, tap to tap the map there; the D-pad and A work too). ZL works at any time.
 ZR - zoom: cycles 50%, 75%, 100%.
 C-stick - pan.   Start - menu.   Select - overview map.
 == 5. READING THE MAP  (1/2)

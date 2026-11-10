@@ -23,6 +23,7 @@
 
 SDL_Surface *ds_screen = 0, *ds_canvas = 0;
 int ds_swapped = 0;
+int ds_ptr_x = DS_BOT_W / 2, ds_ptr_y = DS_BOT_H / 2;   /* touchpad pointer while swapped (map coordinates) */
 int ds_top_dirty = 1, ds_bot_dirty = 1;
 int ui_mode = UM_NONE;
 int dsui_quick_attack = 0;
@@ -232,7 +233,29 @@ void ds_read_input( void )
     in.held = h;
     if ( in.pressed & K_ZL ) { ds_swapped = !ds_swapped; ds_top_dirty = ds_bot_dirty = 1; }   /* ZL swaps the screens at any time */
     in.pressed &= ~K_ZL; in.held &= ~K_ZL; h &= ~K_ZL;
-    if ( ds_swapped ) t = 0;   /* the touch screen shows the dashboard while swapped */
+    if ( ds_swapped ) {
+        /* UI rule 7: swapped, the touch screen (showing the dashboard) is a touchpad for the map on top.
+           Slide moves the pointer; a short tap becomes a one-frame touch at the pointer. */
+        static int pad_on = 0, pad_lx, pad_ly, pad_moved, pad_click = 0;
+        static Uint32 pad_t0;
+        int real = t, rx = tx, ry = ty;
+        t = 0;
+        if ( pad_click == 1 ) { t = 1; tx = ds_ptr_x; ty = ds_ptr_y; pad_click = 2; }
+        else if ( pad_click == 2 ) pad_click = 0;
+        if ( real ) {
+            if ( !pad_on ) { pad_on = 1; pad_lx = rx; pad_ly = ry; pad_moved = 0; pad_t0 = now; }
+            else if ( rx != pad_lx || ry != pad_ly ) {
+                pad_moved += abs( rx - pad_lx ) + abs( ry - pad_ly );
+                ds_ptr_x += rx - pad_lx; ds_ptr_y += ry - pad_ly;
+                if ( ds_ptr_x < 0 ) ds_ptr_x = 0; if ( ds_ptr_x > DS_BOT_W - 1 ) ds_ptr_x = DS_BOT_W - 1;
+                if ( ds_ptr_y < 0 ) ds_ptr_y = 0; if ( ds_ptr_y > DS_BOT_H - 1 ) ds_ptr_y = DS_BOT_H - 1;
+                pad_lx = rx; pad_ly = ry; ds_bot_dirty = 1;
+            }
+        } else if ( pad_on ) {
+            pad_on = 0;
+            if ( pad_moved < 6 && now - pad_t0 < 350 ) pad_click = 1;
+        }
+    }
     in.rep = in.pressed;
 #define K_SCROLL ( K_PUP | K_PDOWN | K_CUP | K_CDOWN )
     {   /* sticks scroll the manual a page at a time: slower repeat so a page can be read */
@@ -1657,7 +1680,7 @@ static unsigned state_sig( void )
     return s;
 }
 
-/* ZL: show the game map on the top screen (centred) and the dashboard, squeezed to fit, on the touch screen.
+/* ZL: show the game map on the top screen (stretched to fill it) and the dashboard, squeezed to fit, on the touch screen.
    The logical frame in ds_screen stays untouched: we swap into it, send it, then put it back. */
 static void present_swapped( void )
 {
@@ -1670,9 +1693,17 @@ static void present_swapped( void )
         for ( x = 0; x < 320; x++ ) botbuf[y * 320 + x] = px[( DS_BOT_Y + y ) * pitch + DS_BOT_X + x];
     }
     for ( y = 0; y < 240; y++ ) {
-        for ( x = 0; x < 400; x++ ) px[y * pitch + x] = ( x >= 40 && x < 360 ) ? botbuf[y * 320 + x - 40] : 0;
+        for ( x = 0; x < 400; x++ ) px[y * pitch + x] = botbuf[y * 320 + x * 4 / 5];   /* UI rule 8: fill the top screen */
         for ( x = 0; x < 400; x++ ) px[( DS_BOT_Y + y ) * pitch + x] = 0;
         for ( x = 0; x < 320; x++ ) px[( DS_BOT_Y + y ) * pitch + DS_BOT_X + x] = topbuf[y * 400 + x * 5 / 4];
+    }
+    {   /* the touchpad pointer: a white arrow with a black edge */
+        static const char *arrow[12] = { "X", "XX", "X.X", "X..X", "X...X", "X....X", "X.....X", "X..XXXX", "X.X", "XX", "X", "" };
+        int ax = ds_ptr_x * 5 / 4, ay = ds_ptr_y, r, c;
+        for ( r = 0; r < 12; r++ )
+            for ( c = 0; arrow[r][c]; c++ )
+                if ( ax + c < 400 && ay + r < 240 )
+                    px[( ay + r ) * pitch + ax + c] = arrow[r][c] == 'X' ? 0x0000 : 0xFFFF;
     }
     if ( SDL_MUSTLOCK( ds_screen ) ) SDL_UnlockSurface( ds_screen );
     SDL_UpdateRect( ds_screen, 0, 0, 0, 0 );
