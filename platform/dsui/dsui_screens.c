@@ -31,7 +31,7 @@ extern const char *get_gamedir( void );
    ====================================================================== */
 #define MAX_ITEMS 160
 #define HEAD_H 24
-#define ROW_H 26
+#define ROW_H 28   /* rule 11: 24-px rows, 4 px apart, 6 px from the screen edges */
 #define FOOT_H 36
 
 typedef struct { char label[80]; char right[40]; int id; int enabled; } Item;
@@ -96,12 +96,12 @@ static void draw_list( void )
         Item *it = &items[scroll_top + i];
         int ry = y + HEAD_H + i * ROW_H;
         int is_sel = ( scroll_top + i == sel );
-        int down = it->enabled && ds_pressed( x + 2, ry, list_w - 4, ROW_H - 2 );
-        dg_fill( x + 2, ry, list_w - 4, ROW_H - 2, down ? 0x5b80b8 : is_sel ? 0x34507a : DC_PANEL );
-        if ( is_sel ) dg_rect( x + 2, ry, list_w - 4, ROW_H - 2, DC_ACCENT );
-        dg_text_fit( &dsfont_body, x + 10, ry + 5, list_w - 20 - dg_text_w( &dsfont_body, it->right ),
+        int down = it->enabled && ds_pressed( x + 6, ry, list_w - 12, ROW_H - 4 );
+        dg_fill( x + 6, ry, list_w - 12, ROW_H - 4, down ? 0x5b80b8 : is_sel ? 0x34507a : DC_PANEL );
+        if ( is_sel ) dg_rect( x + 6, ry, list_w - 12, ROW_H - 4, DC_ACCENT );
+        dg_text_fit( &dsfont_body, x + 12, ry + 4, list_w - 26 - dg_text_w( &dsfont_body, it->right ),
                      it->enabled ? DC_TEXT : DC_DISABLED, it->label );
-        if ( it->right[0] ) dg_text_r( &dsfont_body, x + list_w - 10, ry + 5, it->enabled ? DC_DIM : DC_DISABLED, it->right );
+        if ( it->right[0] ) dg_text_r( &dsfont_body, x + list_w - 12, ry + 4, it->enabled ? DC_DIM : DC_DISABLED, it->right );
     }
     if ( n_items > rows ) {
         /* scroll bar */
@@ -140,8 +140,8 @@ static int list_input( void )
     if ( in.tap && in.tap_x >= list_x && in.tap_x < list_x + list_w ) {
         int ty = in.tap_y;
         if ( n_btns && ty >= DS_BOT_H - FOOT_H ) {
-            int bw = ( list_w - 8 - ( n_btns - 1 ) * 6 ) / n_btns;
-            int i = ( in.tap_x - list_x - 4 ) / ( bw + 6 );
+            int bw = ( list_w - 12 - ( n_btns - 1 ) * 6 ) / n_btns;   /* as drawn in draw_list */
+            int i = ( in.tap_x - list_x - 6 + 3 ) / ( bw + 6 );
             if ( i >= 0 && i < n_btns && btn_on[i] ) return L_BTN0 - i;
             return L_NONE;
         }
