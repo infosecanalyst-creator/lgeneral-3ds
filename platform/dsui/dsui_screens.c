@@ -97,7 +97,7 @@ static void draw_list( void )
         int ry = y + HEAD_H + i * ROW_H;
         int is_sel = ( scroll_top + i == sel );
         int down = it->enabled && ds_pressed( x + 2, ry, list_w - 4, ROW_H - 2 );
-        dg_fill( x + 2, ry, list_w - 4, ROW_H - 2, down ? 0x5b80b8 : is_sel ? 0x34507a : DC_PANEL );
+        dg_fill( x + 2, ry, list_w - 4, ROW_H - 2, down ? DC_PRESSED : is_sel ? DC_SELROW : DC_PANEL );
         if ( is_sel ) dg_rect( x + 2, ry, list_w - 4, ROW_H - 2, DC_ACCENT );
         dg_text_fit( &dsfont_body, x + 10, ry + 5, list_w - 20 - dg_text_w( &dsfont_body, it->right ),
                      it->enabled ? DC_TEXT : DC_DISABLED, it->label );
@@ -501,11 +501,12 @@ static void manual_draw_top( void )
 static char cf_text[256];
 static int cf_engine = 0;
 static void (*cf_yes)( void ) = 0;
+static int cf_focus = 0;   /* 0 = No (the default), 1 = Yes */
 
 void scr_open_confirm( const char *text, int engine_owned, void (*yes)( void ) )
 {
     snprintf( cf_text, sizeof cf_text, "%s", text && *text ? text : "Are you sure?" );
-    cf_engine = engine_owned; cf_yes = yes;
+    cf_engine = engine_owned; cf_yes = yes; cf_focus = 0;
     ui_mode = UM_CONFIRM;
     ds_mark_all();
 }
@@ -516,14 +517,18 @@ static void confirm_draw_bottom( void )
     dg_fill_a( DS_BOT_X, DS_BOT_Y, DS_BOT_W, DS_BOT_H, DC_BG, 170 );
     dg_panel( DS_BOT_X + 16, DS_BOT_Y + 36, DS_BOT_W - 32, 150 );
     dg_text_wrap( &dsfont_bold, DS_BOT_X + 26, DS_BOT_Y + 46, DS_BOT_W - 52, 80, DC_TEXT, cf_text, 0 );
-    ds_button( DS_BOT_X + 26, DS_BOT_Y + 132, 124, 44, "No", 1, 0 );
-    ds_button( DS_BOT_X + 170, DS_BOT_Y + 132, 124, 44, "Yes", 1, 1 );
+    ds_button( DS_BOT_X + 26, DS_BOT_Y + 132, 124, 44, "No", 1, cf_focus == 0 );
+    ds_button( DS_BOT_X + 170, DS_BOT_Y + 132, 124, 44, "Yes", 1, cf_focus == 1 );
+    if ( cf_focus == 0 ) dg_rect( DS_BOT_X + 24, DS_BOT_Y + 130, 128, 48, DC_ACCENT );
+    else dg_rect( DS_BOT_X + 168, DS_BOT_Y + 130, 128, 48, DC_ACCENT );
 }
 
 static void confirm_input( void )
 {
-    int yes = ( in.pressed & K_A ) || ( in.tap && ds_hit( in.tap_x, in.tap_y, 170, 132, 124, 44 ) );
-    int no = ( in.pressed & K_B ) || ( in.tap && ds_hit( in.tap_x, in.tap_y, 26, 132, 124, 44 ) );
+    int yes, no;
+    if ( in.pressed & ( K_LEFT | K_RIGHT ) ) { cf_focus = !cf_focus; ds_mark_all(); return; }
+    yes = ( ( in.pressed & K_A ) && cf_focus == 1 ) || ( in.tap && ds_hit( in.tap_x, in.tap_y, 170, 132, 124, 44 ) );
+    no = ( ( in.pressed & K_A ) && cf_focus == 0 ) || ( in.pressed & K_B ) || ( in.tap && ds_hit( in.tap_x, in.tap_y, 26, 132, 124, 44 ) );
     if ( !yes && !no ) return;
     ui_mode = UM_NONE;
     if ( cf_engine ) dsb_press( yes ? ID_OK : ID_CANCEL );
@@ -870,7 +875,7 @@ static void title_input( void )
    Game menu (Start)
    ====================================================================== */
 enum { G_RESUME = 1, G_UNITS, G_PURCHASE, G_DEPLOY, G_INFO, G_CONDS, G_SAVE, G_LOAD,
-       G_OPTIONS, G_HELP, G_DISBAND, G_ENDTURN, G_RESTART, G_QUIT, G_PEDIA };
+       G_OPTIONS, G_HELP, G_DISBAND, G_ENDTURN, G_RESTART, G_QUIT, G_PEDIA, G_EXIT };
 
 void scr_open_game_menu( void )
 {
@@ -895,11 +900,13 @@ void scr_open_game_menu( void )
     else lst_add( "End turn", 0, G_ENDTURN, dsb_status() == DSB_STATUS_NONE );
     lst_add( "Restart scenario", 0, G_RESTART, 1 );
     lst_add( "Quit to title", 0, G_QUIT, 1 );
+    lst_add( "Exit game", 0, G_EXIT, 1 );
     ui_mode = UM_MENU;
     ds_mark_all();
 }
 
 static void quit_yes( void ) { dsb_quit_to_title(); }
+static void exit_yes( void ) { action_queue_quit(); }
 static void restart_yes( void ) { action_queue_restart(); }
 
 static void menu_input( void )
@@ -921,6 +928,7 @@ static void menu_input( void )
         case G_ENDTURN: scr_close(); ds_end_turn_request(); break;
         case G_RESTART: scr_open_confirm( "Restart this scenario from the beginning?", 0, restart_yes ); break;
         case G_QUIT: scr_open_confirm( "Quit to the title screen?#Unsaved progress since the last autosave is lost.", 0, quit_yes ); break;
+        case G_EXIT: scr_open_confirm( "Exit LGeneral?#Unsaved progress since the last autosave is lost.", 0, exit_yes ); break;
     }
 }
 
@@ -1262,7 +1270,7 @@ static void purchase_draw_bottom( void )
     if ( !pu_ordered_view ) {
         for ( i = 0; i < rows && pu_class_top + i < pu_nclasses; i++ ) {
             int c = pu_class_top + i, ry = y + HEAD_H + i * PU_CLASS_ROW;
-            if ( c == pu_class ) dg_fill( x + 2, ry, PU_CLASS_W - 4, PU_CLASS_ROW - 2, 0x34507a );
+            if ( c == pu_class ) dg_fill( x + 2, ry, PU_CLASS_W - 4, PU_CLASS_ROW - 2, DC_SELROW );
             dg_text_fit( &dsfont_small, x + 6, ry + 5, PU_CLASS_W - 10, c == pu_class ? DC_TEXT : DC_DIM,
                          unit_classes[pu_classes[c]].name );
         }
@@ -1524,7 +1532,7 @@ static void pedia_draw_bottom( void )
     for ( i = 0; i < rows && pd_class_top + i < pd_nclasses; i++ ) {
         int c = pd_class_top + i, ry = y + HEAD_H + i * PU_CLASS_ROW;
         int down = ds_pressed( x + 2, ry, PU_CLASS_W - 4, PU_CLASS_ROW - 2 );
-        if ( c == pd_class || down ) dg_fill( x + 2, ry, PU_CLASS_W - 4, PU_CLASS_ROW - 2, down ? 0x5b80b8 : 0x34507a );
+        if ( c == pd_class || down ) dg_fill( x + 2, ry, PU_CLASS_W - 4, PU_CLASS_ROW - 2, down ? DC_PRESSED : DC_SELROW );
         dg_text_fit( &dsfont_small, x + 6, ry + 5, PU_CLASS_W - 10, c == pd_class ? DC_TEXT : DC_DIM,
                      unit_classes[pd_classes[c]].name );
     }

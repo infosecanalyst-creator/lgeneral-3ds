@@ -56,6 +56,10 @@ MIX_LIBS := -lSDL_mixer -lmikmod -lmad -lvorbisidec -logg
 endif
 
 LDFLAGS := -specs=3dsx.specs -g $(ARCH) -Wl,-Map,$(BUILD)/$(TARGET).map -Wl,--gc-sections
+# Hardware test hooks (3ds-test-suite hwtest/selftest): inactive unless the test agent
+# starts the game with --selftest=<script>.
+SELFTEST_WRAP := hidScanInput hidKeysHeld hidKeysDown hidKeysDownRepeat hidKeysUp hidTouchRead hidCircleRead irrstCstickRead aptMainLoop
+LDFLAGS += $(foreach f,$(SELFTEST_WRAP),-Wl,--wrap=$(f))
 LIBS    := $(MIX_LIBS) $(SDL_LIBS) -L$(CTRULIB)/lib -lcitro3d -lctru -lm
 
 all: $(TARGET).3dsx
