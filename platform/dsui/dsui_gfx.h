@@ -11,18 +11,20 @@
 typedef unsigned int DSColor;
 
 /* palette */
-#define DC_BG        0x10141c
-#define DC_PANEL     0x1c2230
-#define DC_PANEL2    0x252d3e
-#define DC_BORDER    0x3c4860
+#define DC_BG        0x080c28   /* house palette: navy */
+#define DC_PANEL     0x1c2860
+#define DC_PANEL2    0x283878   /* button face 40,56,120 */
+#define DC_BORDER    0x7896e6   /* edge 120,150,230 */
 #define DC_TEXT      0xe6e8ec
 #define DC_DIM       0x969eaa
-#define DC_ACCENT    0xe8b43c
+#define DC_ACCENT    0xffcc40   /* gold */
 #define DC_FRIEND    0x5aaaff
 #define DC_ENEMY     0xf05a50
 #define DC_GOOD      0x6ec878
 #define DC_WARN      0xf0aa3c
 #define DC_DISABLED  0x5a6070
+#define DC_PRESSED   0xdcb43c   /* pressed: gold 220,180,60 */
+#define DC_SELROW    0x3c50a8   /* focused row */
 #define DC_BLACK     0x000000
 #define DC_WHITE     0xffffff
 

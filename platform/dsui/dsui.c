@@ -1190,7 +1190,7 @@ void ds_button( int x, int y, int w, int h, const char *label, int enabled, int 
 {
     int down = enabled && ds_pressed( x, y, w, h );
     /* pressed: lit face, darker inset edge, label nudged down - visible feedback under the stylus */
-    dg_fill( x, y, w, h, down ? 0x5b80b8 : highlight ? 0x34507a : DC_PANEL2 );
+    dg_fill( x, y, w, h, down ? DC_PRESSED : highlight ? DC_SELROW : DC_PANEL2 );
     dg_rect( x, y, w, h, down ? 0xffffff : highlight ? DC_ACCENT : DC_BORDER );
     if ( down ) dg_rect( x + 1, y + 1, w - 2, h - 2, 0x1a2a40 );
     dg_text_c( &dsfont_bold, x + w / 2 + down, y + ( h - dsfont_bold.height ) / 2 + down, enabled ? DC_TEXT : DC_DISABLED, label );
@@ -1215,7 +1215,7 @@ static void draw_strip( void )
         int y = DS_BOT_Y + STRIP_Y0 + i * ( STRIP_BH + STRIP_GAP );
         int bx = x + 2, bw = STRIP_W - 8;
         int down = en && ds_pressed( bx, y, bw, STRIP_BH );
-        dg_fill( bx, y, bw, STRIP_BH, down ? 0x5b80b8 : en ? DC_PANEL2 : DC_PANEL );
+        dg_fill( bx, y, bw, STRIP_BH, down ? DC_PRESSED : en ? DC_PANEL2 : DC_PANEL );
         dg_rect( bx, y, bw, STRIP_BH, en ? DC_BORDER : DC_PANEL2 );
         dg_text_c( &dsfont_small, bx + bw / 2 + down, y + ( STRIP_BH - dsfont_small.height ) / 2 + down, en ? DC_TEXT : DC_DISABLED, act_names[i] );
     }
@@ -1231,7 +1231,7 @@ static void draw_deploy_strip( void )
     for ( i = 0; i < rows && dep_scroll + i < n; i++ ) {
         Unit *u = list_get( left_deploy_units, dep_scroll + i );
         int y = DS_BOT_Y + i * DEP_ROW;
-        if ( u == deploy_unit ) dg_fill( x + 1, y + 1, DEP_W - 2, DEP_ROW - 2, 0x34507a );
+        if ( u == deploy_unit ) dg_fill( x + 1, y + 1, DEP_W - 2, DEP_ROW - 2, DC_SELROW );
         dg_rect( x + 1, y + 1, DEP_W - 2, DEP_ROW - 2, u == deploy_unit ? DC_ACCENT : DC_BORDER );
         dg_blit_scaled( u->sel_prop->icon, u->icon_offset, 0, u->sel_prop->icon_w, u->sel_prop->icon_h,
                         x + 4, y + 3, 48, 34 );
