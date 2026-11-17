@@ -58,6 +58,17 @@ static void crash_handler( ERRF_ExceptionInfo *excep, CpuRegisters *regs )
     }
     printf( "CRASH: %s at pc=%08lx lr=%08lx (see crash.txt)\n", exc_name( excep->type ),
             (unsigned long)regs->pc, (unsigned long)regs->lr );
+    // Restart the console instead of leaving a stuck process (and maybe a hung GPU) behind:
+    // cold restart through the MCU (Luma treats it as a power-on), APT restart as the fallback.
+    // Same as the other ports and the selftest watchdog (Nov 16 2026).
+    if ( R_SUCCEEDED( mcuHwcInit() ) ) {
+        u8 v = 1 << 2;
+        MCUHWC_WriteRegister( 0x20, &v, 1 );
+        mcuHwcExit();
+        svcSleepThread( 3000000000LL );
+    }
+    APT_HardwareResetAsync();
+    svcSleepThread( 2000000000LL );
     svcExitProcess();
 }
 
