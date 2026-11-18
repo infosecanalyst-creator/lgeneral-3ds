@@ -102,7 +102,10 @@ void n3ds_init( void )
         printf( "not enough memory to start (heap %lu KB): exiting\n",
                 (unsigned long)( __ctru_heap_size / 1024 ) );
         fflush( stdout );
-        svcExitProcess();
+        // Back to the Homebrew Launcher (as the selftest does), not the HOME Menu: a bare
+        // svcExitProcess left the 3DS on the HOME Menu with the test agent stopped (Nov 18).
+        aptSetChainloaderToSelf();
+        exit( 0 );
     }
 }
 
