@@ -1513,7 +1513,7 @@ static void hints_card( int x, int y, int w, int h )
         dg_text_wrap( &dsfont_small, x + 6, row, w - 12, h - 10, DC_DIM,
                       "Tap a unit to select it, or press R for the next unit with orders. "
                       "Tap an enemy to see how far it can reach; hold L for all enemy threat. "
-                      "Drag to pan, ZL/ZR to zoom, Y to end the turn, Start for the menu.", 0 );
+                      "Drag to pan, ZR to zoom, ZL to swap screens, Y to end the turn, Start for the menu.", 0 );
 }
 
 /* ---- minimap ---- */

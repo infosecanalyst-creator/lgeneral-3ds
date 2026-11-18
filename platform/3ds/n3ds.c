@@ -13,6 +13,7 @@
 #include <3ds.h>
 #include <SDL.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -94,6 +95,18 @@ void n3ds_init( void )
     printf( "LGeneral 3DS build %s %s\n", __DATE__, __TIME__ );
     printf( "console: %s 3DS, heap %lu KB, linear free %lu KB\n", is_new ? "New" : "Old",
             (unsigned long)( __ctru_heap_size / 1024 ), (unsigned long)( linearSpaceFree() / 1024 ) );
+    // Seen Nov 18 2026: started right after another big game, the 3DS gave LGeneral a 992 KB heap;
+    // the video set-up then failed and the game crashed. Say so and go back instead of crashing.
+    if ( __ctru_heap_size < 16u * 1024 * 1024 ) {
+        errorConf e;
+        printf( "not enough memory to start (heap %lu KB): exiting\n",
+                (unsigned long)( __ctru_heap_size / 1024 ) );
+        errorInit( &e, ERROR_TEXT_WORD_WRAP, CFG_LANGUAGE_EN );
+        errorText( &e, "LGeneral could not get enough memory to start.\n"
+                       "Close it, wait a few seconds and start it again." );
+        errorDisp( &e );
+        exit( 0 );
+    }
 }
 
 void n3ds_post_sdl_init( void )
