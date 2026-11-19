@@ -232,7 +232,13 @@ void ds_read_input( void )
     in.pressed = h & ~in.held;
     in.released = in.held & ~h;
     in.held = h;
-    if ( in.pressed & K_ZL ) { ds_swapped = !ds_swapped; ds_top_dirty = ds_bot_dirty = 1; dsui_options_save(); }   /* ZL swaps the screens at any time; remembered (rule 16) */
+    {   /* ZL swaps the screens at any time; remembered (rule 16). Its own edge: in.held drops ZL
+           below, so in.pressed alone would see a new press on every call while ZL is held. */
+        static int zl_was = 0;
+        const int zl = ( h & K_ZL ) != 0;
+        if ( zl && !zl_was ) { ds_swapped = !ds_swapped; ds_top_dirty = ds_bot_dirty = 1; dsui_options_save(); }
+        zl_was = zl;
+    }
     in.pressed &= ~K_ZL; in.held &= ~K_ZL; h &= ~K_ZL;
     if ( ds_swapped ) {
         /* UI rule 7: swapped, the touch screen (showing the dashboard) is a touchpad for the map on top.
