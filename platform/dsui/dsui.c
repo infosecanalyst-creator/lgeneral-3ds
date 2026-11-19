@@ -1090,18 +1090,23 @@ static void unit_badge( Unit *u, int mx, int my, int air )
     side = ally ? DC_SIDE_FRIEND : DC_SIDE_ENEMY;
     if ( ( !air || !map[mx][my].g_unit ) && !( cur_unit && cur_unit->x == mx && cur_unit->y == my ) )
         hex_overlay( mx, my, side, 70, side, 1 );   /* the selected hex keeps its gold ring */
-    if ( ally && ( unit_low_ammo( u ) || unit_low_fuel( u ) ) ) txt = 0xffd040;
-    snprintf( t, sizeof t, "%d", u->str );
+    /* UI rule 20: low ammo/fuel is a "!" as well as the amber number */
+    if ( ally && ( unit_low_ammo( u ) || unit_low_fuel( u ) ) ) { txt = 0xffd040; snprintf( t, sizeof t, "%d!", u->str ); }
+    else snprintf( t, sizeof t, "%d", u->str );
     {
         const DSFont *f = ( ds_zoom_level == 0 ) ? &dsfont_small : &dsfont_bold;
         int fh = ( ds_zoom_level == 0 ) ? 10 : 12;
-        w = dg_text_w( f, t ) + 4; h = fh + 1;
+        w = dg_text_w( f, t ) + ( ally ? 4 : 8 ); h = fh + 1;
         if ( w < h ) w = h;
         tx = bx + ( hw - w ) / 2;
         ty = air ? by + 1 : by + hh - h + 2;   /* hangs slightly below the hex so the unit art stays visible */
         dg_fill( tx - 1, ty - 1, w + 2, h + 2, 0x000000 );
         dg_fill( tx, ty, w, h, side );
         if ( air ) dg_fill( tx, ty, w, 2, 0xffffff );   /* white cap marks an air unit */
+        if ( !ally ) {   /* UI rule 20: enemy badges have white side bars, so friend/foe is not colour alone */
+            dg_fill( tx, ty, 2, h, 0xffffff );
+            dg_fill( tx + w - 2, ty, 2, h, 0xffffff );
+        }
         dg_text_c( f, tx + w / 2, ty + ( h - fh ) / 2 - ( ds_zoom_level == 0 ? 2 : 1 ), txt, t );
     }
 }
