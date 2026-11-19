@@ -920,6 +920,7 @@ static void suspend_save( void )
     if ( !suspend_ok() ) return;
     snprintf( name, sizeof name, "Autosave: %.30s, turn %d", scen_info->name, turn + 1 );
     slot_save( SLOT_COUNT - 1, name );
+    printf( "dsui: suspend save (%s)\n", name );
 }
 static void quit_yes( void ) { suspend_save(); dsb_quit_to_title(); }
 static void exit_yes( void ) { suspend_save(); action_queue_quit(); }
