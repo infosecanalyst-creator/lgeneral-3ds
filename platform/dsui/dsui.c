@@ -1171,7 +1171,9 @@ static void draw_map_overlays( void )
 static void draw_banner( const char *t )
 {
     int w = dg_text_w( &dsfont_body, t ) + 16;
-    int x = DS_BOT_X + ( DS_BOT_W - w ) / 2, y = DS_BOT_Y + DS_BOT_H - 24;
+    int room = strip_visible() ? DS_BOT_W - STRIP_W : DS_BOT_W;   /* never under the action strip */
+    int x = DS_BOT_X + ( room - w ) / 2, y = DS_BOT_Y + DS_BOT_H - 24;
+    if ( x < DS_BOT_X + 4 ) x = DS_BOT_X + 4;
     dg_fill_a( x, y, w, 20, DC_BG, 210 );
     dg_rect( x, y, w, 20, DC_BORDER );
     dg_text( &dsfont_body, x + 8, y + 3, DC_TEXT, t );
@@ -1288,6 +1290,18 @@ static void draw_bottom_map( void )
     if ( st == DSB_STATUS_MERGE ) draw_banner( "Tap a unit to merge with  -  B: cancel" );
     else if ( st == DSB_STATUS_SPLIT ) draw_banner( "Tap a hex or unit for the split  -  B: cancel" );
     else if ( st == DSB_STATUS_DROP ) draw_banner( "Tap a drop zone  -  B: cancel" );
+    /* UI rule 14: the full forecast card is on the top screen, so its verdict also shows here,
+       on the map you are about to tap again (words, so colour is never the only signal) */
+    else if ( fc_strat && !fc_target ) draw_banner( "Carpet bombing  -  tap again to bomb" );
+    else if ( fc_target && cur_unit ) {
+        char t[96];
+        const char *v = fc_def >= fc_target->str ? "Kills it" : fc_att >= cur_unit->str ? "! You die"
+                      : fc_att > fc_def ? "! Bad trade" : fc_def > fc_att ? "Good trade" : "Even";
+        snprintf( t, sizeof t, "%s: you -%d, they -%d. Tap again to attack", v, fc_att, fc_def );
+        if ( dg_text_w( &dsfont_body, t ) + 16 > DS_BOT_W - STRIP_W - 12 )
+            snprintf( t, sizeof t, "%s: you -%d, they -%d", v, fc_att, fc_def );
+        draw_banner( t );
+    }
 }
 
 /* ======================================================================
