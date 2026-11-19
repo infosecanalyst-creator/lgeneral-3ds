@@ -911,8 +911,18 @@ void scr_open_game_menu( void )
     ds_mark_all();
 }
 
-static void quit_yes( void ) { dsb_quit_to_title(); }
-static void exit_yes( void ) { action_queue_quit(); }
+/* Rule 17 (never lose progress): leaving a game saves it to the autosave slot first, the one
+   Continue on the title screen loads; only when the game could be saved by hand right now. */
+static int suspend_ok( void ) { return scen_info && dsb_status() == DSB_STATUS_NONE && !dsb_deploy_turn(); }
+static void suspend_save( void )
+{
+    char name[64];
+    if ( !suspend_ok() ) return;
+    snprintf( name, sizeof name, "Autosave: %.30s, turn %d", scen_info->name, turn + 1 );
+    slot_save( SLOT_COUNT - 1, name );
+}
+static void quit_yes( void ) { suspend_save(); dsb_quit_to_title(); }
+static void exit_yes( void ) { suspend_save(); action_queue_quit(); }
 static void restart_yes( void ) { action_queue_restart(); }
 
 static void menu_input( void )
@@ -933,8 +943,10 @@ static void menu_input( void )
         case G_DISBAND: scr_close(); dsb_press( ID_DISBAND ); break;
         case G_ENDTURN: scr_close(); ds_end_turn_request(); break;
         case G_RESTART: scr_open_confirm( "Restart this scenario from the beginning?", 0, restart_yes ); break;
-        case G_QUIT: scr_open_confirm( "Quit to the title screen?#Unsaved progress since the last autosave is lost.", 0, quit_yes ); break;
-        case G_EXIT: scr_open_confirm( "Exit LGeneral?#Unsaved progress since the last autosave is lost.", 0, exit_yes ); break;
+        case G_QUIT: scr_open_confirm( suspend_ok() ? "Quit to the title screen?#The game is saved first: Continue picks it up."
+                                                    : "Quit to the title screen?#Unsaved progress since the last autosave is lost.", 0, quit_yes ); break;
+        case G_EXIT: scr_open_confirm( suspend_ok() ? "Exit LGeneral?#The game is saved first: Continue picks it up."
+                                                    : "Exit LGeneral?#Unsaved progress since the last autosave is lost.", 0, exit_yes ); break;
     }
 }
 
