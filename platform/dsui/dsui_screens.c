@@ -184,11 +184,12 @@ void dsui_options_load( void )
     FILE *f;
     snprintf( path, sizeof path, "%s/dsui.conf", config.dir_name );
     if ( ( f = fopen( path, "r" ) ) ) {
-        int a = 0, b = 1, z = 1, l = 0;
-        int n = fscanf( f, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d", &a, &b, &z, &l );
+        int a = 0, b = 1, z = 1, l = 0, w = 0;
+        int n = fscanf( f, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d swapped=%d", &a, &b, &z, &l, &w );
         if ( n >= 2 ) { dsui_quick_attack = a; dsui_auto_advance = b; }
         if ( n >= 3 && z >= 0 && z <= 2 ) ds_zoom_level = z;
         if ( n >= 4 ) dsui_lefty = l != 0;
+        if ( n >= 5 ) ds_swapped = w != 0;   /* rule 16: the screen swap is remembered */
         fclose( f );
     }
 }
@@ -198,7 +199,7 @@ void dsui_options_save( void )
     FILE *f;
     snprintf( path, sizeof path, "%s/dsui.conf", config.dir_name );
     if ( ( f = fopen( path, "w" ) ) ) {
-        fprintf( f, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d\n", dsui_quick_attack, dsui_auto_advance, ds_zoom_level, dsui_lefty );
+        fprintf( f, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d swapped=%d\n", dsui_quick_attack, dsui_auto_advance, ds_zoom_level, dsui_lefty, ds_swapped );
         fclose( f );
     }
 }
