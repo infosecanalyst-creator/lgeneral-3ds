@@ -1000,10 +1000,18 @@ int slot_save( int id, char *name )
         if ( !bad ) {
             rc = rename( tmp_path, path );
             if ( rc != 0 ) {
-                fprintf( stderr, "slot_save: rename failed (errno %d), retrying after remove\n", errno );
-                remove( path );
+                /* the 3DS SD card refuses to rename over an existing file: keep the old
+                   slot as .bak, move the new one in, and put the old one back if that fails */
+                char bak_path[1040];
+                snprintf( bak_path, sizeof bak_path, "%s.bak", path );
+                remove( bak_path );
+                int had = rename( path, bak_path ) == 0;
                 rc = rename( tmp_path, path );
-                if ( rc != 0 ) { bad = 1; fprintf( stderr, "slot_save: rename failed again (errno %d)\n", errno ); }
+                if ( rc != 0 ) {
+                    bad = 1;
+                    fprintf( stderr, "slot_save: rename failed (errno %d)\n", errno );
+                    if ( had ) rename( bak_path, path );
+                }
             }
         }
         if ( bad ) {
