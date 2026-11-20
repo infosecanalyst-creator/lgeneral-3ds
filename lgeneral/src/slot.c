@@ -932,9 +932,14 @@ int slot_save( int id, char *name )
     COMPILE_TIME_ASSERT(StoreHighestSupportedVersion <= StoreVersionLimit);
     /* get file name */
     snprintf( path, 1024, "%s/lg_save_%i", config.dir_name, id );
+    /* LG-01: write a temporary file and move it over the slot only when every
+       byte reached the card, so a power cut or a full SD card never leaves a
+       half-written slot (the autosave is the one Continue loads) */
+    char tmp_path[1040];
+    snprintf( tmp_path, sizeof tmp_path, "%s.tmp", path );
     /* open file */
-    if ( ( file = fopen( path, "wb" ) ) == 0 ) {
-        fprintf( stderr, tr("%s: not found\n"), path );
+    if ( ( file = fopen( tmp_path, "wb" ) ) == 0 ) {
+        fprintf( stderr, tr("%s: not found\n"), tmp_path );
         return 0;
     }
     /* update slot name */
@@ -986,7 +991,16 @@ int slot_save( int id, char *name )
     for ( i = 0; i < map_w; i++ )
         for ( j = 0; j < map_h; j++ )
             save_map_tile_flag( file, map_tile( i, j ) );
-    fclose( file );
+    {
+        int bad = ferror( file ) != 0;
+        if ( fflush( file ) != 0 ) bad = 1;
+        if ( fclose( file ) != 0 ) bad = 1;
+        if ( bad || rename( tmp_path, path ) != 0 ) {
+            fprintf( stderr, "slot_save: writing %s failed\n", path );
+            remove( tmp_path );
+            return 0;
+        }
+    }
     /* is valid now */
     slots[id].valid = 1;
     return 1;

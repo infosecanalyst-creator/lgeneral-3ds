@@ -604,7 +604,8 @@ static void do_save( void )
     char name[64];
     if ( pending_slot < 0 || !scen_info ) return;
     snprintf( name, sizeof name, "%.36s, turn %d", scen_info->name, turn + 1 );
-    slot_save( pending_slot, name );
+    if ( !slot_save( pending_slot, name ) )   /* LG-02: a failed save is never silent */
+        scr_open_pages( "Save failed", strdup( "The game could not be saved. Is the SD card full or locked?\n\nThe slot keeps what it had before." ) );
     pending_slot = -1;
 }
 static void slots_input( void )
@@ -914,16 +915,28 @@ void scr_open_game_menu( void )
 /* Rule 17 (never lose progress): leaving a game saves it to the autosave slot first, the one
    Continue on the title screen loads; only when the game could be saved by hand right now. */
 static int suspend_ok( void ) { return scen_info && dsb_status() == DSB_STATUS_NONE && !dsb_deploy_turn(); }
-static void suspend_save( void )
+static int suspend_save( void )   /* 1: saved (or nothing to save), 0: the save failed */
 {
     char name[64];
-    if ( !suspend_ok() ) return;
+    if ( !suspend_ok() ) return 1;
     snprintf( name, sizeof name, "Autosave: %.30s, turn %d", scen_info->name, turn + 1 );
-    slot_save( SLOT_COUNT - 1, name );
-    printf( "dsui: suspend save (%s)\n", name );
+    int ok = slot_save( SLOT_COUNT - 1, name );
+    printf( "dsui: suspend save (%s) %s\n", name, ok ? "ok" : "FAILED" );
+    return ok;
 }
-static void quit_yes( void ) { suspend_save(); dsb_quit_to_title(); }
-static void exit_yes( void ) { suspend_save(); action_queue_quit(); }
+/* LG-02: never leave the game after a failed save without asking */
+static void quit_anyway( void ) { dsb_quit_to_title(); }
+static void exit_anyway( void ) { action_queue_quit(); }
+static void quit_yes( void )
+{
+    if ( suspend_save() ) dsb_quit_to_title();
+    else scr_open_confirm( "The save failed (SD card full or locked?).#Quit anyway? Progress since the last save is lost.", 0, quit_anyway );
+}
+static void exit_yes( void )
+{
+    if ( suspend_save() ) action_queue_quit();
+    else scr_open_confirm( "The save failed (SD card full or locked?).#Exit anyway? Progress since the last save is lost.", 0, exit_anyway );
+}
 static void restart_yes( void ) { action_queue_restart(); }
 
 static void menu_input( void )

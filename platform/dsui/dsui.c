@@ -550,7 +550,8 @@ void dsui_turn_begins( int human )
         if ( !dsb_deploy_turn() && scen_info ) {
             char name[64];
             snprintf( name, sizeof name, "Autosave: %.30s, turn %d", scen_info->name, turn + 1 );
-            slot_save( SLOT_COUNT - 1, name );
+            if ( !slot_save( SLOT_COUNT - 1, name ) )   /* LG-02: say so; the previous autosave is kept */
+                scr_open_pages( "Autosave failed", strdup( "The autosave could not be written. Is the SD card full or locked?\n\nThe previous autosave is kept. Save by hand from the menu once the card has room." ) );
         }
     }
     ds_mark_all();
