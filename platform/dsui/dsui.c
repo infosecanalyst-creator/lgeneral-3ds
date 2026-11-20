@@ -14,6 +14,7 @@
 #include <string.h>
 #ifdef __3DS__
 #include <3ds.h>
+#include "n3ds.h"
 #endif
 
 #include "dsui_int.h"
@@ -1017,6 +1018,13 @@ static void auto_advance( void )
 int dsui_tick( void )
 {
     int st;
+#ifdef __3DS__
+    if ( n3ds_take_resumed() ) {   /* LG-03: back from HOME / sleep: drop stale input, redraw both screens */
+        printf( "dsui: resumed from HOME/sleep\n" );
+        event_clear();
+        ds_mark_all();
+    }
+#endif
     ds_read_input();
     st = dsb_status();
     {

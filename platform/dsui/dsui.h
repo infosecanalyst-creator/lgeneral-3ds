@@ -34,6 +34,7 @@ void dsui_frame( void );
 /* called at the start of engine_check_events, after SDL_PumpEvents; runs input + UI logic.
    returns 1 if a native modal UI owns the input this frame (engine input is skipped) */
 int  dsui_tick( void );
+void dsui_home_exit_save( void );                      /* LG-03: HOME -> Close: the Exit game save, no questions */
 /* SDL event filter hook: returns 0 to drop the event */
 int  dsui_filter( const SDL_Event *ev );
 

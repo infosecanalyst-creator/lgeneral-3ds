@@ -924,6 +924,14 @@ static int suspend_save( void )   /* 1: saved (or nothing to save), 0: the save 
     printf( "dsui: suspend save (%s) %s\n", name, ok ? "ok" : "FAILED" );
     return ok;
 }
+/* LG-03: HOME -> Close (the 3DS asked the game to quit): the same save Exit game does, on the main
+   thread before anything is torn down. There is no time to ask, so a failed save is only logged. */
+void dsui_home_exit_save( void )
+{
+    printf( "dsui: HOME close requested\n" );
+    if ( setup.type == SETUP_RUN_TITLE || setup.type == SETUP_CAMP_BRIEFING ) return;   /* never overwrite Continue from the title */
+    suspend_save();
+}
 /* LG-02: never leave the game after a failed save without asking */
 static void quit_anyway( void ) { dsb_quit_to_title(); }
 static void exit_anyway( void ) { action_queue_quit(); }

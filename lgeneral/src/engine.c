@@ -2689,6 +2689,12 @@ static void engine_check_events(int *reinit)
     int mx, my, keypressed = 0;
     int nx, ny;
     SDL_PumpEvents(); /* gather events in the queue */
+#ifdef DSUI
+    if ( sdl_quit && !term_game ) {   /* LG-03: HOME -> Close saves like Exit game first */
+        static int home_saved = 0;
+        if ( !home_saved ) { home_saved = 1; dsui_home_exit_save(); }
+    }
+#endif
     if ( sdl_quit ) term_game = 1; /* end game by window manager */
 #ifdef DSUI
     {

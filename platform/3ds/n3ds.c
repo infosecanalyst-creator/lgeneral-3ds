@@ -27,6 +27,23 @@ extern u32 __ctru_heap_size; /* libctru: total newlib heap reserved at startup *
 u32 __stacksize__ = 256 * 1024;
 
 static SDL_Joystick *pad = 0;
+
+/* LG-03: HOME / lid. The hook runs inside aptMainLoop() (called from SDL_PumpEvents on the main
+   thread), which blocks while the game is suspended, so the game is paused by itself. The hook only
+   sets a flag; the main loop clears stale input and redraws when it sees it. Nothing is saved here. */
+static aptHookCookie apt_cookie;
+static volatile int apt_resumed = 0;
+static void apt_hook( APT_HookType type, void *param )
+{
+    (void)param;
+    if ( type == APTHOOK_ONRESTORE || type == APTHOOK_ONWAKEUP ) apt_resumed = 1;
+}
+int n3ds_take_resumed( void )
+{
+    if ( !apt_resumed ) return 0;
+    apt_resumed = 0;
+    return 1;
+}
 static u8 exc_stack[0x4000] __attribute__((aligned(8)));
 
 static const char *exc_name( ERRF_ExceptionType t )
@@ -90,6 +107,7 @@ void n3ds_init( void )
         setvbuf( stderr, NULL, _IONBF, 0 );
 
     threadOnException( crash_handler, exc_stack + sizeof( exc_stack ), WRITE_DATA_TO_HANDLER_STACK );
+    aptHook( &apt_cookie, apt_hook, 0 );
 
     APT_CheckNew3DS( &is_new );
     printf( "LGeneral 3DS build %s %s\n", __DATE__, __TIME__ );
@@ -133,6 +151,7 @@ void n3ds_log_mem( const char *tag )
 
 void n3ds_exit( void )
 {
+    aptUnhook( &apt_cookie );
     n3ds_log_mem( "exit" );
     if ( pad ) SDL_JoystickClose( pad );
     pad = 0;

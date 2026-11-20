@@ -26,6 +26,9 @@ void n3ds_post_sdl_init( void );
 /* log free app memory with a tag (memory headroom shows up in lgeneral.log) */
 void n3ds_log_mem( const char *tag );
 
+/* 1 once after the game comes back from the HOME Menu or sleep (then 0 until the next time) */
+int n3ds_take_resumed( void );
+
 /* call before exit */
 void n3ds_exit( void );
 
