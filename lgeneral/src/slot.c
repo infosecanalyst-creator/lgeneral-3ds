@@ -15,6 +15,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <errno.h>
 #include <assert.h>
 #include <math.h>
 #include <dirent.h>
@@ -992,11 +993,21 @@ int slot_save( int id, char *name )
         for ( j = 0; j < map_h; j++ )
             save_map_tile_flag( file, map_tile( i, j ) );
     {
-        int bad = ferror( file ) != 0;
-        if ( fflush( file ) != 0 ) bad = 1;
-        if ( fclose( file ) != 0 ) bad = 1;
-        if ( bad || rename( tmp_path, path ) != 0 ) {
-            fprintf( stderr, "slot_save: writing %s failed\n", path );
+        int bad = 0, rc;
+        if ( ferror( file ) ) { bad = 1; fprintf( stderr, "slot_save: write error (errno %d)\n", errno ); }
+        if ( fflush( file ) != 0 ) { bad = 1; fprintf( stderr, "slot_save: fflush failed (errno %d)\n", errno ); }
+        if ( fclose( file ) != 0 ) { bad = 1; fprintf( stderr, "slot_save: fclose failed (errno %d)\n", errno ); }
+        if ( !bad ) {
+            rc = rename( tmp_path, path );
+            if ( rc != 0 ) {
+                fprintf( stderr, "slot_save: rename failed (errno %d), retrying after remove\n", errno );
+                remove( path );
+                rc = rename( tmp_path, path );
+                if ( rc != 0 ) { bad = 1; fprintf( stderr, "slot_save: rename failed again (errno %d)\n", errno ); }
+            }
+        }
+        if ( bad ) {
+            fprintf( stderr, "slot_save: saving slot %d failed\n", id );
             remove( tmp_path );
             return 0;
         }
