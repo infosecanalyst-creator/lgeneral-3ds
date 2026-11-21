@@ -18,8 +18,15 @@
 #ifndef __AI_TOOLS_H
 #define __AI_TOOLS_H
 
+#ifdef __3DS__
+/* LG-07: the AI's turn trace goes to the SD card only with sdmc:/3ds/lgeneral/debug.txt */
+int n3ds_debug_log( void );
+#define AI_DEBUG( loglev, ... ) \
+	do { if (loglev <= config.ai_debug && n3ds_debug_log()) printf(__VA_ARGS__); } while (0)
+#else
 #define AI_DEBUG( loglev, ... ) \
 	do { if (loglev <= config.ai_debug) printf(__VA_ARGS__); } while (0)
+#endif
 
 /*
 ====================================================================

@@ -924,7 +924,7 @@ static int suspend_save( void )   /* 1: saved (or nothing to save), 0: the save 
     if ( !suspend_ok() ) return 1;
     snprintf( name, sizeof name, "Autosave: %.30s, turn %d", scen_info->name, turn + 1 );
     int ok = slot_save( SLOT_COUNT - 1, name );
-    printf( "dsui: suspend save (%s) %s\n", name, ok ? "ok" : "FAILED" );
+    printf( "dsui: suspend save (%s) %s\n", name, ok ? "ok" : "FAILED" ); fflush( stdout );
     return ok;
 }
 /* LG-03: HOME -> Close (the 3DS asked the game to quit): the same save Exit game does, on the main

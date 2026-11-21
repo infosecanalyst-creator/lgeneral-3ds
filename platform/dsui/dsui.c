@@ -15,6 +15,9 @@
 #ifdef __3DS__
 #include <3ds.h>
 #include "n3ds.h"
+#define DS_DEBUG_LOG n3ds_debug_log()   /* sdmc:/3ds/lgeneral/debug.txt (LG-07) */
+#else
+#define DS_DEBUG_LOG 1
 #endif
 
 #include "dsui_int.h"
@@ -1019,6 +1022,7 @@ int dsui_tick( void )
 {
     int st;
 #ifdef __3DS__
+    n3ds_log_tick();               /* LG-07: buffered log out every ~10 s, capped at 1 MB */
     if ( n3ds_take_resumed() ) {   /* LG-03: back from HOME / sleep: drop stale input, redraw both screens */
         printf( "dsui: resumed from HOME/sleep\n" );
         event_clear();
@@ -1029,7 +1033,7 @@ int dsui_tick( void )
     st = dsb_status();
     {
         static int last_st = -1, last_mode = -1;
-        if ( st != last_st || ui_mode != last_mode ) {
+        if ( ( st != last_st || ui_mode != last_mode ) && DS_DEBUG_LOG ) {   /* debug.txt only (LG-07) */
             printf( "dsui: status %d mode %d\n", st, ui_mode );
             last_st = st; last_mode = ui_mode;
         }

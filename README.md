@@ -73,7 +73,7 @@ Green dot = unit can still move, amber dot = can still attack.
 
 ## When something breaks
 
-- `sdmc:/3ds/lgeneral/lgeneral.log` - startup steps and memory use (unbuffered, so the last line is where it stopped)
+- `sdmc:/3ds/lgeneral/lgeneral.log` - startup steps, memory use, saves and exit (buffered: written every ~10 s and at exit, rolled over at 1 MB). An empty `sdmc:/3ds/lgeneral/debug.txt` adds the AI's turn trace and the UI status lines
 - `sdmc:/3ds/lgeneral/crash.txt` - crash type and addresses; turn them into source lines with
   `bash tools/addr2line.sh <pc> <lr>`
 

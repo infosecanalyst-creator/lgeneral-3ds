@@ -24,6 +24,8 @@ void n3ds_init( void );
 void n3ds_post_sdl_init( void );
 
 /* log free app memory with a tag (memory headroom shows up in lgeneral.log) */
+int n3ds_debug_log( void );   /* sdmc:/3ds/lgeneral/debug.txt existed at start-up */
+void n3ds_log_tick( void );   /* main loop: write the buffered log out, cap it */
 void n3ds_log_mem( const char *tag );
 
 /* 1 once after the game comes back from the HOME Menu or sleep (then 0 until the next time) */

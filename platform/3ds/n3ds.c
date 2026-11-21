@@ -93,6 +93,28 @@ static void crash_handler( ERRF_ExceptionInfo *excep, CpuRegisters *regs )
     svcExitProcess();
 }
 
+static int dbg_log = 0;
+int n3ds_debug_log( void ) { return dbg_log; }
+
+/* every main-loop tick: write the buffered log out every ~10 s; past 1 MB start a new one */
+void n3ds_log_tick( void )
+{
+    static u64 last = 0;
+    u64 now = osGetTime();
+    if ( now - last < 10000 ) return;
+    last = now;
+    fflush( stdout );
+    if ( ftell( stdout ) > 1024 * 1024 ) {
+        remove( LG_3DS_ROOT "/lgeneral.old.log" );
+        rename( LG_3DS_ROOT "/lgeneral.log", LG_3DS_ROOT "/lgeneral.old.log" );
+        if ( freopen( LG_3DS_ROOT "/lgeneral.log", "w", stdout ) && freopen( LG_3DS_ROOT "/lgeneral.log", "a", stdout ) )
+            setvbuf( stdout, NULL, _IOFBF, 16384 );
+        freopen( LG_3DS_ROOT "/lgeneral.log", "a", stderr );
+        setvbuf( stderr, NULL, _IONBF, 0 );
+        printf( "(log rolled over at 1 MB: earlier lines in lgeneral.old.log)\n" );
+    }
+}
+
 void n3ds_init( void )
 {
     bool is_new = false;
@@ -104,8 +126,19 @@ void n3ds_init( void )
     mkdir( LG_3DS_ROOT "/config", 0777 );
     chdir( LG_3DS_ROOT );
 
-    if ( freopen( LG_3DS_ROOT "/lgeneral.log", "w", stdout ) )
-        setvbuf( stdout, NULL, _IONBF, 0 );
+    /* LG-07: lgeneral.log was written unbuffered, one SD write per line: the AI's turn
+       trace, a status line per UI change, every refused move. Now stdout is buffered
+       (16 KB, written out every ~10 s by n3ds_log_tick, rolled over at 1 MB); without
+       sdmc:/3ds/lgeneral/debug.txt (checked once, here) the AI trace and the per-tick
+       status lines are off. Start, exit, HOME-close and save lines stay. Both streams
+       append, so neither overwrites the other's lines. */
+    {
+        FILE *d = fopen( LG_3DS_ROOT "/debug.txt", "r" );
+        dbg_log = d != NULL;
+        if ( d ) fclose( d );
+    }
+    if ( freopen( LG_3DS_ROOT "/lgeneral.log", "w", stdout ) && freopen( LG_3DS_ROOT "/lgeneral.log", "a", stdout ) )
+        setvbuf( stdout, NULL, _IOFBF, 16384 );
     if ( freopen( LG_3DS_ROOT "/lgeneral.log", "a", stderr ) )
         setvbuf( stderr, NULL, _IONBF, 0 );
 
@@ -113,7 +146,8 @@ void n3ds_init( void )
     aptHook( &apt_cookie, apt_hook, 0 );
 
     APT_CheckNew3DS( &is_new );
-    printf( "LGeneral 3DS build %s (%s %s)\n", PORT_VERSION, __DATE__, __TIME__ );
+    printf( "LGeneral 3DS build %s (%s %s)%s\n", PORT_VERSION, __DATE__, __TIME__,
+            dbg_log ? ", debug log on (debug.txt)" : "" );
     printf( "console: %s 3DS, heap %lu KB, linear free %lu KB\n", is_new ? "New" : "Old",
             (unsigned long)( __ctru_heap_size / 1024 ), (unsigned long)( linearSpaceFree() / 1024 ) );
     // Seen Nov 18 2026: started right after another big game, the 3DS gave LGeneral a 992 KB heap;
@@ -156,6 +190,7 @@ void n3ds_exit( void )
 {
     aptUnhook( &apt_cookie );
     n3ds_log_mem( "exit" );
+    fflush( stdout );
     if ( pad ) SDL_JoystickClose( pad );
     pad = 0;
 }
