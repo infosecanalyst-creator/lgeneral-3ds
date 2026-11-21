@@ -3,11 +3,13 @@
 Unofficial port of [LGeneral](https://lgames.sourceforge.io/LGeneral/) 1.4.4 (an open-source, GPL turn-based
 strategy engine in the style of the classic 1990s wargames) to the New 3DS XL.
 
-**Game data.** No game data is stored in this repo. `bash tools/fetch-data.sh` downloads the official LGeneral
+**Game data (bring your own for Panzer General).** No game data is stored in this repo. `bash tools/fetch-data.sh` downloads the official LGeneral
 1.4.4 Windows package and installs only the free data: **K.u.K. General**, a World War I campaign by Steve McGuba
 (CC BY-SA 3.0), with LGeneral's own themes and sounds. The package also contains Panzer General scenarios converted
 from SSI's commercial game; they are left out unless you run `WITH_PG=1 bash tools/fetch-data.sh`. Only do that if
 you own Panzer General: this project grants no licence to that data.
+
+**Install:** put `lgeneral.3dsx` directly in `sdmc:/3ds/` (as `sdmc:/3ds/lgeneral.3dsx`) and the data in `sdmc:/3ds/lgeneral/` (see Install over Wi-Fi below). `lgeneral.log` there holds start, exit and error lines; an empty `sdmc:/3ds/lgeneral/debug.txt` turns on the AI trace, UI status lines and a frame-rate line every 5 s (buffered, capped).
 
 GitHub Actions builds `lgeneral.3dsx` on every push (Actions tab → latest run → artifact).
 
@@ -19,7 +21,7 @@ GitHub Actions builds `lgeneral.3dsx` on every push (Actions tab → latest run 
 - Native touch menus for everything the PC version does with windows: title, scenario and campaign
   pickers with setup, campaign briefings, purchase, deploy, save/load (10 slots + autosave),
   unit list, overview map, options and a 4-page How to play.
-- Autosave at the start of each of your turns; **Continue** on the title screen resumes it.
+- Autosave at the start of each of your turns; **Continue** on the title screen resumes it. Quit to title, Exit game and HOME > Close save into that autosave first; if the save fails you are asked Quit / Exit anyway. Saves go to a temporary file and are moved into place, so a failed save keeps the old one.
 
 Sound effects play when the 3DS has its DSP firmware dumped (`sdmc:/3ds/dspfirm.cdc`); otherwise the
 game runs silently. Options has Sound and Volume. Not yet: stereoscopic 3D (SDL 1.2 on 3DS has no

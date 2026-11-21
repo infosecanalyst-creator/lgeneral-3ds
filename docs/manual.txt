@@ -10,7 +10,7 @@ B or START: close.
 Open it any time from the title screen or Start > Manual.
 == 1. STARTING A GAME  (1/2)
 The title screen:
-Continue - resumes the autosave made at the start of your last turn.
+Continue - resumes the autosave: made at the start of each of your turns, and again when you exit or quit to the title from a game.
 New scenario - pick a set (K.u.k General WWI, or any other set you installed), then a battle. The top screen shows its briefing.
 New campaign - a chain of battles; your core units carry over and results decide the next battle.
 Load game - one of the ten save slots.
@@ -64,7 +64,7 @@ Red tint = enemy can move there; orange = it can attack there (tap enemy, or hol
 == 6. MOVING AND ATTACKING  (1/2)
 Moving next to an enemy ends your movement for the turn (zone of control), so plan the last step.
 Attack from a hex next to the enemy (artillery, ships and bombers reach further).
-The first tap on an enemy shows the FORECAST: the expected losses for both sides. Tap again to attack, or tap elsewhere to cancel. Quicker: drag your unit onto the enemy and let go.
+The first tap on an enemy shows the FORECAST: the expected losses for both sides and a verdict on the map: Kills it, ! You die or ! Both die (when both units would be destroyed). Tap again to attack, or tap elsewhere to cancel. Quicker: drag your unit onto the enemy and let go.
 A unit can usually move then attack, or attack then stay put.
 == 6. MOVING AND ATTACKING  (2/2)
 Units that do not move dig in (entrenchment); dug-in units in towns, forests and hills are very hard to dislodge.
@@ -113,9 +113,12 @@ Objectives (top screen) are the victory hexes. Start > Victory conditions shows 
 Taking every objective early usually gives a Major Victory; on time a Minor one; otherwise a defeat.
 In a campaign, a Major Victory can open a better next battle (or bonus prestige); your core units keep their experience.
 == 13. SAVING, OPTIONS, FILES
-Autosave at the start of each of your turns (Continue on the title screen). Start > Save game: ten slots.
-Options: forecast tap, auto-select, unit badges, hex grid, watch enemy turn, animation speed, sound, and Left hand (swaps the D-pad with Y, A, B and X: Y is up, A is right, B is down, X is left, and the reverse; for holding the stylus in the left hand; remembered).
-Files live in sdmc:/3ds/lgeneral/. If something goes wrong, lgeneral.log and crash.txt there show what happened.
+Autosave: at the start of each of your turns (Continue on the title screen picks it up). Start > Save game: ten slots.
+Quit to title and Exit game (Start menu) ask first and save the game into the autosave first when it could be saved by hand right then. If that save fails (SD card full or locked) they say so and ask Quit anyway / Exit anyway instead of leaving. Closing the game from the HOME menu (HOME, then Close) does the same save, but has no time to ask.
+A save is written to a temporary file and then moved into place, so a failed save keeps what the slot had before. A failed autosave keeps the previous autosave and says so.
+Options: forecast tap, auto-select, unit badges, hex grid, watch enemy turn, animation speed, sound, and Left hand (swaps the D-pad with Y, A, B and X: Y is up, A is right, B is down, X is left, and the reverse; for holding the stylus in the left hand; remembered). Your options are saved when you leave Options, when you open the menu, after 3 seconds without input, and on exit.
+Files: the program is sdmc:/3ds/lgeneral.3dsx (directly in /3ds). Everything else lives in sdmc:/3ds/lgeneral/ (saves, dsui.conf, lgeneral.log, crash.txt).
+Log: lgeneral.log holds start, exit and error lines, and rolls over at a size cap. For the AI trace and UI status lines, create an empty file debug.txt in sdmc:/3ds/lgeneral/. It slows the game a little; delete it to switch it off. crash.txt is written if the game crashes.
 Install or update over Wi-Fi with ftpd.
 == 14. ENCYCLOPEDIA
 Start > Encyclopedia: every unit and terrain type, with the numbers that matter.
