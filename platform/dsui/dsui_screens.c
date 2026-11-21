@@ -669,6 +669,22 @@ static int n_paths = 0;
 static char scen_group[128];
 static int scen_level = 0;           /* 0 = groups, 1 = scenarios in group */
 static char *sel_info = 0;
+
+/* Briefing texts in the data files are wrapped by hand at about 70 columns, which
+   left ragged half lines once the panel wrapped them again. Join such a line with
+   the next one (a single line break after a long line); short lines ("10 Turns")
+   and blank lines stay as they are. */
+static char *reflow_info( char *t )
+{
+    int len = 0;
+    if ( !t ) return t;
+    for ( char *p = t; *p; p++ ) {
+        if ( *p != '\n' ) { len++; continue; }
+        if ( len >= 48 && p[1] && p[1] != '\n' && p[1] != '\r' && p[1] != ' ' && p[1] != '-' ) *p = ' ';
+        len = 0;
+    }
+    return t;
+}
 static int sel_info_for = -1;
 static int picking_camp = 0;
 
@@ -751,8 +767,8 @@ static void ensure_sel_info( void )
     if ( n_items <= 0 || sel_info_for == sel ) return;
     free( sel_info ); sel_info = 0;
     sel_info_for = sel;
-    if ( picking_camp ) sel_info = camp_load_info( paths[items[sel].id - 1] );
-    else if ( scen_level == 1 ) sel_info = scen_load_info( paths[items[sel].id - 1] );
+    if ( picking_camp ) sel_info = reflow_info( camp_load_info( paths[items[sel].id - 1] ) );
+    else if ( scen_level == 1 ) sel_info = reflow_info( scen_load_info( paths[items[sel].id - 1] ) );
 }
 
 static void open_scen_setup( void );
@@ -768,7 +784,7 @@ static void scenlist_input( void )
     if ( r == L_BTN0 - 1 ) r = n_items > 0 ? items[sel].id : L_NONE;   /* Start / Next button */
     if ( r <= 0 ) return;
     if ( picking_camp ) {
-        free( sel_info ); sel_info = camp_load_info( paths[r - 1] ); sel_info_for = sel;
+        free( sel_info ); sel_info = reflow_info( camp_load_info( paths[r - 1] ) ); sel_info_for = sel;
         if ( !sel_info ) return;
         clear_paths();
         scr_close();
@@ -783,7 +799,7 @@ static void scenlist_input( void )
         scen_build();
         return;
     }
-    free( sel_info ); sel_info = scen_load_info( paths[r - 1] ); sel_info_for = sel;
+    free( sel_info ); sel_info = reflow_info( scen_load_info( paths[r - 1] ) ); sel_info_for = sel;
     if ( sel_info ) open_scen_setup();
 }
 
