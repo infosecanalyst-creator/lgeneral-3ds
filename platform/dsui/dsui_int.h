@@ -91,6 +91,8 @@ void scr_draw_bottom( void );
 void scr_input( void );
 unsigned scr_view_key( void );
 void dsui_options_load( void );
-void dsui_options_save( void );
+void dsui_options_save( void );   /* writes only if something changed (LG-05) */
+void dsui_options_mark( void );   /* a setting changed; written on the options screen's exit, 3 s later, or at exit */
+void dsui_options_tick( void );
 
 #endif

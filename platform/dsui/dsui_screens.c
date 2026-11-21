@@ -181,8 +181,16 @@ static void top_text_panel( const char *title, const char *text, int skip )
 /* ======================================================================
    Options (persisted in the config dir)
    ====================================================================== */
+static int opts_dirty;
+static unsigned opts_stamp;
+static char opts_last[160];
+
+static unsigned opts_now( void ) { return (unsigned)( SDL_GetTicks() ); }
+
 void dsui_options_load( void )
 {
+    static int once;
+    if ( !once ) { once = 1; atexit( dsui_options_save ); }   /* LG-05: and at exit */
     char path[600];
     FILE *f;
     snprintf( path, sizeof path, "%s/dsui.conf", config.dir_name );
@@ -194,17 +202,37 @@ void dsui_options_load( void )
         if ( n >= 4 ) dsui_lefty = l != 0;
         if ( n >= 5 ) ds_swapped = w != 0;   /* rule 16: the screen swap is remembered */
         fclose( f );
+        if ( n >= 5 ) snprintf( opts_last, sizeof opts_last, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d swapped=%d\n", dsui_quick_attack, dsui_auto_advance, ds_zoom_level, dsui_lefty, ds_swapped );
     }
 }
+/* LG-05: dsui.conf is written only when a setting really changed (ZL swap, ZR zoom just mark it),
+   and then when the options screen is left, the game menu opens, 3 s after the last change, or at
+   exit. Temp file, checked write and close, then swapped in; never the same text twice. */
+
+void dsui_options_mark( void ) { opts_dirty = 1; opts_stamp = opts_now(); }
+
 void dsui_options_save( void )
 {
-    char path[600];
+    char path[600], tmp[620], bak[620], buf[160];
     FILE *f;
+    int n;
+    opts_dirty = 0;
+    n = snprintf( buf, sizeof buf, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d swapped=%d\n", dsui_quick_attack, dsui_auto_advance, ds_zoom_level, dsui_lefty, ds_swapped );
+    if ( n <= 0 || n >= (int)sizeof buf || !strcmp( buf, opts_last ) ) return;
     snprintf( path, sizeof path, "%s/dsui.conf", config.dir_name );
-    if ( ( f = fopen( path, "w" ) ) ) {
-        fprintf( f, "quick_attack=%d auto_advance=%d zoom=%d lefty=%d swapped=%d\n", dsui_quick_attack, dsui_auto_advance, ds_zoom_level, dsui_lefty, ds_swapped );
-        fclose( f );
-    }
+    snprintf( tmp, sizeof tmp, "%s.tmp", path );
+    snprintf( bak, sizeof bak, "%s.bak", path );
+    if ( !( f = fopen( tmp, "w" ) ) ) return;
+    if ( fwrite( buf, 1, (size_t)n, f ) != (size_t)n || fclose( f ) != 0 ) { remove( tmp ); return; }
+    remove( bak );
+    rename( path, bak );
+    if ( rename( tmp, path ) != 0 ) { rename( bak, path ); return; }
+    strcpy( opts_last, buf );
+}
+
+void dsui_options_tick( void )
+{
+    if ( opts_dirty && (unsigned)( opts_now() - opts_stamp ) > 3000u ) dsui_options_save();
 }
 
 static void build_options( void )
@@ -890,6 +918,7 @@ enum { G_RESUME = 1, G_UNITS, G_PURCHASE, G_DEPLOY, G_INFO, G_CONDS, G_SAVE, G_L
 void scr_open_game_menu( void )
 {
     char t[32];
+    dsui_options_save();   /* LG-05: a changed swap or zoom is written when the menu opens */
     lst_init( "Menu", 0 );
     lst_add( "Resume", 0, G_RESUME, 1 );
     snprintf( t, sizeof t, "%d ready", ds_ready_units() );

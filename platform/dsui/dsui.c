@@ -240,7 +240,7 @@ void ds_read_input( void )
            below, so in.pressed alone would see a new press on every call while ZL is held. */
         static int zl_was = 0;
         const int zl = ( h & K_ZL ) != 0;
-        if ( zl && !zl_was ) { ds_swapped = !ds_swapped; ds_top_dirty = ds_bot_dirty = 1; dsui_options_save(); }
+        if ( zl && !zl_was ) { ds_swapped = !ds_swapped; ds_top_dirty = ds_bot_dirty = 1; dsui_options_mark(); }
         zl_was = zl;
     }
     in.pressed &= ~K_ZL; in.held &= ~K_ZL; h &= ~K_ZL;
@@ -917,7 +917,7 @@ static void map_input( void )
     /* --- buttons --- */
     if ( in.pressed & K_START ) { scr_open_game_menu(); return; }
     if ( ( in.pressed & K_SELECT ) && !deploy ) { scr_open_overview(); return; }
-    if ( in.pressed & K_ZR ) { set_zoom( ds_zoom_level >= 2 ? 0 : ds_zoom_level + 1 ); dsui_options_save(); }   /* ZL is the screen swap */
+    if ( in.pressed & K_ZR ) { set_zoom( ds_zoom_level >= 2 ? 0 : ds_zoom_level + 1 ); dsui_options_mark(); }   /* ZL is the screen swap */
     if ( in.held & ( K_CUP | K_CDOWN | K_CLEFT | K_CRIGHT ) ) {
         int s = B2C( 6 );
         pan_view( ( in.held & K_CLEFT ) ? -s : ( in.held & K_CRIGHT ) ? s : 0,
@@ -1313,7 +1313,8 @@ static void draw_bottom_map( void )
     else if ( fc_strat && !fc_target ) draw_banner( "Carpet bombing  -  tap again to bomb" );
     else if ( fc_target && cur_unit ) {
         char t[96];
-        const char *v = fc_def >= fc_target->str ? "Kills it" : fc_att >= cur_unit->str ? "! You die"
+        const int kills = fc_def >= fc_target->str, dies = fc_att >= cur_unit->str;
+        const char *v = kills && dies ? "! Both die" : kills ? "Kills it" : dies ? "! You die"
                       : fc_att > fc_def ? "! Bad trade" : fc_def > fc_att ? "Good trade" : "Even";
         snprintf( t, sizeof t, "%s: you -%d, they -%d. Tap again to attack", v, fc_att, fc_def );
         if ( dg_text_w( &dsfont_body, t ) + 16 > DS_BOT_W - STRIP_W - 12 )
@@ -1493,7 +1494,8 @@ static void forecast_card( int x, int y, int w, int h )
     dg_text( &dsfont_body, x + 6, row, DC_TEXT, t );
     bar( x + 96, row + 3, w - 104, 8, fc_target->str - fc_def, fc_target->str > 0 ? fc_target->str : 1, DC_ENEMY );
     row += dsfont_body.height + 2;
-    if ( fc_def >= fc_target->str ) dg_text( &dsfont_bold, x + 6, row, DC_GOOD, "Likely destroys the target" );
+    if ( fc_def >= fc_target->str && fc_att >= cur_unit->str ) dg_text_fit( &dsfont_bold, x + 6, row, w - 12, DC_WARN, "Both units likely destroyed" );   /* LG-06 */
+    else if ( fc_def >= fc_target->str ) dg_text( &dsfont_bold, x + 6, row, DC_GOOD, "Likely destroys the target" );
     else if ( fc_att >= cur_unit->str ) dg_text( &dsfont_bold, x + 6, row, DC_ENEMY, "Your unit will likely be destroyed" );
     else if ( fc_att > fc_def ) dg_text( &dsfont_bold, x + 6, row, DC_WARN, "Unfavourable exchange" );
     else dg_text( &dsfont_bold, x + 6, row, DC_DIM, fc_def > fc_att ? "Favourable exchange" : "Even exchange" );
@@ -1850,6 +1852,7 @@ void dsui_canvas_updated( int count, SDL_Rect *rects )
 
 void dsui_frame( void )
 {
+    dsui_options_tick();   /* LG-05 */
     if ( !present_due() ) { if ( ds_top_dirty || ds_bot_dirty ) st_held++; return; }   /* LG-04: next loop */
     ds_present();
 }
