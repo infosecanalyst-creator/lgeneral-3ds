@@ -28,6 +28,9 @@ jobs:
         run: |
           mkdir -p out
           cp lgeneral.3dsx libs.log build.log out/ 2>/dev/null || true
+          # symbols for reading crash addresses: gzipped ELF (addr2line) and a demangled nm map
+          gzip -9c build/lgeneral.elf > out/lgeneral.elf.gz 2>/dev/null || true
+          "$DEVKITARM/bin/arm-none-eabi-nm" -C -n build/lgeneral.elf 2>/dev/null | gzip -9 > out/lgeneral.sym.gz || true
           echo "$GITHUB_SHA" > out/SOURCE_COMMIT
       - name: Publish to builds branch
         if: success()   # never replace the last good build with a failed one (e.g. when pkg.devkitpro.org refuses the runner)

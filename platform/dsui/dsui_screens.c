@@ -18,6 +18,9 @@
 extern int audio_ok;
 #endif
 #include "file.h"
+#ifndef PORT_VERSION
+#define PORT_VERSION "unknown"
+#endif
 
 extern void ds_draw_bottom_map( void );
 extern void ds_status_draw_top( void );
@@ -901,7 +904,7 @@ void scr_open_game_menu( void )
     lst_add( "Load game", 0, G_LOAD, 1 );
     lst_add( "Options", 0, G_OPTIONS, 1 );
     lst_add( "Encyclopedia", "units, terrain", G_PEDIA, unit_lib && unit_lib->count > 0 );
-    lst_add( "Manual", 0, G_HELP, 1 );
+    lst_add( "Manual", "build " PORT_VERSION, G_HELP, 1 );
     lst_add( "Disband selected unit", 0, G_DISBAND, cur_unit && cur_unit->unused );
     if ( dsb_status() == DSB_STATUS_DEPLOY ) lst_add( "Finish deployment", 0, G_ENDTURN, 1 );
     else lst_add( "End turn", 0, G_ENDTURN, dsb_status() == DSB_STATUS_NONE );

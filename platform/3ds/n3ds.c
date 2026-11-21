@@ -22,6 +22,9 @@
 extern u32 __ctru_heap_size; /* libctru: total newlib heap reserved at startup */
 
 #include "n3ds.h"
+#ifndef PORT_VERSION
+#define PORT_VERSION "unknown"
+#endif
 
 /* main thread stack: the libctru default (32 KB) is too thin for the engine + AI call chains */
 u32 __stacksize__ = 256 * 1024;
@@ -110,7 +113,7 @@ void n3ds_init( void )
     aptHook( &apt_cookie, apt_hook, 0 );
 
     APT_CheckNew3DS( &is_new );
-    printf( "LGeneral 3DS build %s %s\n", __DATE__, __TIME__ );
+    printf( "LGeneral 3DS build %s (%s %s)\n", PORT_VERSION, __DATE__, __TIME__ );
     printf( "console: %s 3DS, heap %lu KB, linear free %lu KB\n", is_new ? "New" : "Old",
             (unsigned long)( __ctru_heap_size / 1024 ), (unsigned long)( linearSpaceFree() / 1024 ) );
     // Seen Nov 18 2026: started right after another big game, the 3DS gave LGeneral a 992 KB heap;

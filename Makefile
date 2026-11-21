@@ -43,6 +43,10 @@ CFLAGS := -g -O2 -Wall -Wno-unused -Wno-pointer-sign -Wno-format-overflow \
           -Ilgeneral -Ilgeneral/src -Ilgeneral/util -Iplatform/3ds \
           $(SDL_CFLAGS) -I$(CTRULIB)/include
 
+# Port version (git describe of lgeneral-3ds): START menu, next to Manual, and the log
+PORT_VERSION ?= $(shell git -c safe.directory='*' describe --always --dirty 2>/dev/null || echo unknown)
+CFLAGS += -DPORT_VERSION=\"$(PORT_VERSION)\"
+
 ifeq ($(DSUI),1)
 CFLAGS += -DDSUI -Iplatform/dsui
 endif
