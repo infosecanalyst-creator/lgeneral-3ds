@@ -1,0 +1,337 @@
+lgeneral/src/ai.c
+lgeneral/src/action.c
+lgeneral/src/ai_group.c
+lgeneral/src/ai_tools.c
+lgeneral/src/ai_group.c: In function 'ai_get_best_target':
+lgeneral/src/ai_group.c:212:108: warning: taking address of packed member of 'struct _Unit' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  212 |             if ( !unit_evaluate_attack( unit, entry, score_atk_base, score_rugged, score_kill, score_loss, &entry->target_score ) )
+      |                                                                                                            ^~~~~~~~~~~~~~~~~~~~
+lgeneral/src/audio.c
+lgeneral/src/campaign.c
+lgeneral/src/config.c
+lgeneral/src/date.c
+lgeneral/src/engine.c
+lgeneral/src/event.c
+lgeneral/src/file.c
+lgeneral/src/gui.c
+lgeneral/src/gui.c:116:38: warning: extra tokens at end of '#endif' directive [-Wendif-labels]
+  116 | #endif  /* size of fixed GUI panel */;
+      |                                      ^
+lgeneral/src/image.c
+lgeneral/src/lg-sdl.c
+lgeneral/src/lg-sdl.c: In function 'hardware_cap':
+lgeneral/src/lg-sdl.c:745:28: warning: format '%i' expects argument of type 'int', but argument 2 has type 'Uint32' {aka 'long unsigned int'} [-Wformat=]
+  745 |     printf("Video Memory: %i\n", vi->video_mem);
+      |                           ~^     ~~~~~~~~~~~~~
+      |                            |       |
+      |                            int     Uint32 {aka long unsigned int}
+      |                           %li
+lgeneral/src/list.c
+lgeneral/src/main.c
+lgeneral/src/map.c
+lgeneral/src/misc.c
+lgeneral/src/nation.c
+lgeneral/src/parser.c
+lgeneral/src/parser.c: In function 'parser_read_file':
+lgeneral/src/parser.c:159:59: warning: '%s' directive output may be truncated writing up to 1023 bytes into a region of size 1019 [-Wformat-truncation=]
+  159 |     snprintf( parser_error, sizeof parser_error, "%s: %i: %s",
+      |                                                           ^~
+......
+  545 |             parser_set_parse_error( st, parser_sub_error );
+      |                                         ~~~~~~~~~~~~~~~~   
+In function 'parser_set_parse_error',
+    inlined from 'parser_read_file' at lgeneral/src/parser.c:545:13:
+lgeneral/src/parser.c:159:5: note: 'snprintf' output 6 or more bytes (assuming 1029) into a destination of size 1024
+  159 |     snprintf( parser_error, sizeof parser_error, "%s: %i: %s",
+      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  160 |               st->fname, st->lineno, error );
+      |               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+lgeneral/src/player.c
+lgeneral/src/purchase_dlg.c
+In function 'engine_update',
+    inlined from 'engine_main_loop' at lgeneral/src/engine.c:4416:9,
+    inlined from 'engine_run' at lgeneral/src/engine.c:4672:13:
+lgeneral/src/engine.c:3971:57: warning: 'cx' may be used uninitialized [-Wmaybe-uninitialized]
+ 3971 |                                                         map_draw_tile( sdl.screen, cur_unit->x, cur_unit->y, cx, cy, !air_mode, 0 );
+      |                                                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+lgeneral/src/engine.c: In function 'engine_run':
+lgeneral/src/engine.c:3693:9: note: 'cx' declared here
+ 3693 |     int cx, cy;
+      |         ^~
+In function 'engine_update',
+    inlined from 'engine_main_loop' at lgeneral/src/engine.c:4416:9,
+    inlined from 'engine_run' at lgeneral/src/engine.c:4672:13:
+lgeneral/src/engine.c:3971:57: warning: 'cy' may be used uninitialized [-Wmaybe-uninitialized]
+ 3971 |                                                         map_draw_tile( sdl.screen, cur_unit->x, cur_unit->y, cx, cy, !air_mode, 0 );
+      |                                                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+lgeneral/src/engine.c: In function 'engine_run':
+lgeneral/src/engine.c:3693:13: note: 'cy' declared here
+ 3693 |     int cx, cy;
+      |             ^~
+lgeneral/src/scenario.c
+lgeneral/src/scenario.c: In function 'scen_load':
+lgeneral/src/scenario.c:270:80: warning: format '%u' expects argument of type 'unsigned int', but argument 3 has type 'Uint32' {aka 'long unsigned int'} [-Wformat=]
+  270 | #define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+      |                                                                                ^~~~~~~~~~~~~~~~~~~~~~         ~~~~~~~~~~~~
+      |                                                                                                                  |
+      |                                                                                                                  Uint32 {aka long unsigned int}
+lgeneral/src/scenario.c:325:5: note: in expansion of macro 'LT'
+  325 |     LT( "nations" );
+      |     ^~
+lgeneral/src/scenario.c:270:95: note: format string is defined here
+  270 | #define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+      |                                                                                             ~~^
+      |                                                                                               |
+      |                                                                                               unsigned int
+      |                                                                                             %5lu
+lgeneral/src/scenario.c:270:80: warning: format '%u' expects argument of type 'unsigned int', but argument 3 has type 'Uint32' {aka 'long unsigned int'} [-Wformat=]
+  270 | #define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+      |                                                                                ^~~~~~~~~~~~~~~~~~~~~~         ~~~~~~~~~~~~
+      |                                                                                                                  |
+      |                                                                                                                  Uint32 {aka long unsigned int}
+lgeneral/src/scenario.c:350:5: note: in expansion of macro 'LT'
+  350 |     LT( "unit libs" );
+      |     ^~
+lgeneral/src/scenario.c:270:95: note: format string is defined here
+  270 | #define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+      |                                                                                             ~~^
+      |                                                                                               |
+      |                                                                                               unsigned int
+      |                                                                                             %5lu
+lgeneral/src/scenario.c:270:80: warning: format '%u' expects argument of type 'unsigned int', but argument 3 has type 'Uint32' {aka 'long unsigned int'} [-Wformat=]
+  270 | #define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+      |                                                                                ^~~~~~~~~~~~~~~~~~~~~~         ~~~~~~~~~~~~
+      |                                                                                                                  |
+      |                                                                                                                  Uint32 {aka long unsigned int}
+lgeneral/src/scenario.c:359:5: note: in expansion of macro 'LT'
+  359 |     LT( "map+terrain" );
+      |     ^~
+lgeneral/src/scenario.c:270:95: note: format string is defined here
+  270 | #define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+      |                                                                                             ~~^
+      |                                                                                               |
+      |                                                                                               unsigned int
+      |                                                                                             %5lu
+lgeneral/src/purchase_dlg.c: In function 'render_unit_lib_entry_info.constprop':
+lgeneral/src/purchase_dlg.c:270:49: warning: '%2i' directive output may be truncated writing between 2 and 10 bytes into a region of size 6 [-Wformat-truncation=]
+  270 |                         snprintf( valstr, 8, "  %2i", entry->atks[i] );
+      |                                                 ^~~
+lgeneral/src/purchase_dlg.c:270:46: note: directive argument in the range [0, 2147483647]
+  270 |                         snprintf( valstr, 8, "  %2i", entry->atks[i] );
+      |                                              ^~~~~~~
+lgeneral/src/purchase_dlg.c:270:25: note: 'snprintf' output between 5 and 13 bytes into a destination of size 8
+  270 |                         snprintf( valstr, 8, "  %2i", entry->atks[i] );
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+lgeneral/src/purchase_dlg.c:268:48: warning: '%2i' directive output may be truncated writing between 2 and 10 bytes into a region of size 7 [-Wformat-truncation=]
+  268 |                         snprintf( valstr, 8, "[%2i]", -entry->atks[i] );
+      |                                                ^~~
+lgeneral/src/purchase_dlg.c:268:46: note: directive argument in the range [1, 2147483647]
+  268 |                         snprintf( valstr, 8, "[%2i]", -entry->atks[i] );
+      |                                              ^~~~~~~
+lgeneral/src/purchase_dlg.c:268:25: note: 'snprintf' output between 5 and 13 bytes into a destination of size 8
+  268 |                         snprintf( valstr, 8, "[%2i]", -entry->atks[i] );
+      |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+lgeneral/src/scenario.c:700:46: warning: taking address of packed member of 'struct _Unit' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  700 |                 parser_get_int( sub, "core", &unit_base.core );
+      |                                              ^~~~~~~~~~~~~~~
+lgeneral/src/scenario.c:709:54: warning: taking address of packed member of 'struct _Unit' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  709 |         unit_delayed = parser_get_int( sub, "delay", &unit_base.delay );
+      |                                                      ^~~~~~~~~~~~~~~~
+lgeneral/src/scenario.c:711:41: warning: taking address of packed member of 'struct _Unit' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  711 |         if ( !parser_get_int( sub, "x", &unit_base.x ) && !unit_delayed ) goto parser_failure;
+      |                                         ^~~~~~~~~~~~
+lgeneral/src/scenario.c:712:41: warning: taking address of packed member of 'struct _Unit' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  712 |         if ( !parser_get_int( sub, "y", &unit_base.y ) && !unit_delayed ) goto parser_failure;
+      |                                         ^~~~~~~~~~~~
+lgeneral/src/scenario.c:718:43: warning: taking address of packed member of 'struct _Unit' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  718 |         if ( !parser_get_int( sub, "str", &unit_base.str ) ) goto parser_failure;
+      |                                           ^~~~~~~~~~~~~~
+lgeneral/src/scenario.c:719:44: warning: taking address of packed member of 'struct _Unit' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  719 |         if ( !parser_get_int( sub, "entr", &unit_base.entr ) ) goto parser_failure;
+      |                                            ^~~~~~~~~~~~~~~
+lgeneral/src/scenario.c:720:43: warning: taking address of packed member of 'struct _Unit' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  720 |         if ( !parser_get_int( sub, "exp", &unit_base.exp_level ) ) goto parser_failure;
+      |                                           ^~~~~~~~~~~~~~~~~~~~
+lgeneral/src/scenario.c:270:80: warning: format '%u' expects argument of type 'unsigned int', but argument 3 has type 'Uint32' {aka 'long unsigned int'} [-Wformat=]
+  270 | #define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+      |                                                                                ^~~~~~~~~~~~~~~~~~~~~~         ~~~~~~~~~~~~
+      |                                                                                                                  |
+      |                                                                                                                  Uint32 {aka long unsigned int}
+lgeneral/src/scenario.c:837:5: note: in expansion of macro 'LT'
+  837 |     LT( "units+rest" );
+      |     ^~
+lgeneral/src/scenario.c:270:95: note: format string is defined here
+  270 | #define LT( label ) do { static Uint32 _t; Uint32 _n = SDL_GetTicks(); printf( "load: %-12s %5u ms\n", label, _n - lt_prev ); lt_prev = _n; (void)_t; } while ( 0 )
+      |                                                                                             ~~^
+      |                                                                                               |
+      |                                                                                               unsigned int
+      |                                                                                             %5lu
+lgeneral/src/slot.c
+lgeneral/src/strat_map.c
+lgeneral/src/terrain.c
+lgeneral/src/unit.c
+lgeneral/src/unit_lib.c
+lgeneral/src/unit_lib.c: In function 'unit_lib_load':
+lgeneral/src/unit_lib.c:386:50: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  386 |         if ( !parser_get_int( sub, "initiative", &unit->ini ) ) goto parser_failure;
+      |                                                  ^~~~~~~~~~
+lgeneral/src/unit_lib.c:388:48: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  388 |         if ( !parser_get_int( sub, "spotting", &unit->spt ) ) goto parser_failure;
+      |                                                ^~~~~~~~~~
+lgeneral/src/unit_lib.c:390:48: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  390 |         if ( !parser_get_int( sub, "movement", &unit->mov ) ) goto parser_failure;
+      |                                                ^~~~~~~~~~
+lgeneral/src/unit_lib.c:400:44: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  400 |         if ( !parser_get_int( sub, "fuel", &unit->fuel ) ) goto parser_failure;
+      |                                            ^~~~~~~~~~~
+lgeneral/src/unit_lib.c:402:45: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  402 |         if ( !parser_get_int( sub, "range", &unit->rng ) ) goto parser_failure;
+      |                                             ^~~~~~~~~~
+lgeneral/src/unit_lib.c:404:44: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  404 |         if ( !parser_get_int( sub, "ammo", &unit->ammo ) ) goto parser_failure;
+      |                                            ^~~~~~~~~~~
+lgeneral/src/unit_lib.c:406:52: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  406 |         if ( !parser_get_int( sub, "attack/count", &unit->atk_count ) ) goto parser_failure;
+      |                                                    ^~~~~~~~~~~~~~~~
+lgeneral/src/unit_lib.c:410:61: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  410 |             if ( !parser_get_int( subsub, trgt_types[i].id, &unit->atks[i] ) ) goto parser_failure;
+      |                                                             ^~~~~~~~~~~~~~
+lgeneral/src/unit_lib.c:412:50: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  412 |         if ( !parser_get_int( sub, "def_ground", &unit->def_grnd ) ) goto parser_failure;
+      |                                                  ^~~~~~~~~~~~~~~
+lgeneral/src/unit_lib.c:414:47: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  414 |         if ( !parser_get_int( sub, "def_air", &unit->def_air ) ) goto parser_failure;
+      |                                               ^~~~~~~~~~~~~~
+lgeneral/src/unit_lib.c:416:49: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  416 |         if ( !parser_get_int( sub, "def_close", &unit->def_cls ) ) goto parser_failure;
+      |                                                 ^~~~~~~~~~~~~~
+lgeneral/src/unit_lib.c:432:44: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  432 |         parser_get_int( sub, "start_year", &unit->start_year );
+      |                                            ^~~~~~~~~~~~~~~~~
+lgeneral/src/unit_lib.c:433:45: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  433 |         parser_get_int( sub, "start_month", &unit->start_month );
+      |                                             ^~~~~~~~~~~~~~~~~~
+lgeneral/src/unit_lib.c:434:43: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  434 |         parser_get_int( sub, "last_year", &unit->last_year );
+      |                                           ^~~~~~~~~~~~~~~~
+lgeneral/src/unit_lib.c:437:38: warning: taking address of packed member of 'struct <anonymous>' may result in an unaligned pointer value [-Waddress-of-packed-member]
+  437 |         parser_get_int( sub, "cost", &unit->cost );
+      |                                      ^~~~~~~~~~~
+lgeneral/src/windows.c
+lgeneral/util/hashtable.c
+lgeneral/util/hashtable_itr.c
+lgeneral/util/hashtable_utility.c
+lgeneral/util/localize.c
+lgeneral/util/paths.c
+In file included from lgeneral/util/localize.c:31:
+lgeneral/util/intl/hash-string.h: In function 'hash_string':
+lgeneral/util/intl/hash-string.h:39:1: warning: old-style function definition [-Wold-style-definition]
+   39 | hash_string (str_param)
+      | ^~~~~~~~~~~
+lgeneral/util/portability.c
+platform/3ds/heap3ds.c
+platform/3ds/n3ds.c
+platform/3ds/selftest3ds.c
+platform/dsui/dsui.c
+platform/dsui/dsui_fonts.c
+platform/dsui/dsui.c: In function 'ds_read_input':
+platform/dsui/dsui.c:204:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  204 |     if ( k & KEY_A ) h |= K_A;           if ( k & KEY_B ) h |= K_B;
+      |     ^~
+platform/dsui/dsui.c:204:42: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  204 |     if ( k & KEY_A ) h |= K_A;           if ( k & KEY_B ) h |= K_B;
+      |                                          ^~
+platform/dsui/dsui.c:205:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  205 |     if ( k & KEY_X ) h |= K_X;           if ( k & KEY_Y ) h |= K_Y;
+      |     ^~
+platform/dsui/dsui.c:205:42: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  205 |     if ( k & KEY_X ) h |= K_X;           if ( k & KEY_Y ) h |= K_Y;
+      |                                          ^~
+platform/dsui/dsui.c:206:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  206 |     if ( k & KEY_L ) h |= K_L;           if ( k & KEY_R ) h |= K_R;
+      |     ^~
+platform/dsui/dsui.c:206:42: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  206 |     if ( k & KEY_L ) h |= K_L;           if ( k & KEY_R ) h |= K_R;
+      |                                          ^~
+platform/dsui/dsui.c:207:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  207 |     if ( k & KEY_ZL ) h |= K_ZL;         if ( k & KEY_ZR ) h |= K_ZR;
+      |     ^~
+platform/dsui/dsui.c:207:42: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  207 |     if ( k & KEY_ZL ) h |= K_ZL;         if ( k & KEY_ZR ) h |= K_ZR;
+      |                                          ^~
+platform/dsui/dsui.c:208:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  208 |     if ( k & KEY_START ) h |= K_START;   if ( k & KEY_SELECT ) h |= K_SELECT;
+      |     ^~
+platform/dsui/dsui.c:208:42: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  208 |     if ( k & KEY_START ) h |= K_START;   if ( k & KEY_SELECT ) h |= K_SELECT;
+      |                                          ^~
+platform/dsui/dsui.c:223:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  223 |     if ( k & KEY_CSTICK_UP ) h |= K_CUP;       if ( k & KEY_CSTICK_DOWN ) h |= K_CDOWN;
+      |     ^~
+platform/dsui/dsui.c:223:48: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  223 |     if ( k & KEY_CSTICK_UP ) h |= K_CUP;       if ( k & KEY_CSTICK_DOWN ) h |= K_CDOWN;
+      |                                                ^~
+platform/dsui/dsui.c:224:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  224 |     if ( k & KEY_CSTICK_LEFT ) h |= K_CLEFT;   if ( k & KEY_CSTICK_RIGHT ) h |= K_CRIGHT;
+      |     ^~
+platform/dsui/dsui.c:224:48: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  224 |     if ( k & KEY_CSTICK_LEFT ) h |= K_CLEFT;   if ( k & KEY_CSTICK_RIGHT ) h |= K_CRIGHT;
+      |                                                ^~
+platform/dsui/dsui.c:261:17: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  261 |                 if ( ds_ptr_x < 0 ) ds_ptr_x = 0; if ( ds_ptr_x > DS_BOT_W - 1 ) ds_ptr_x = DS_BOT_W - 1;
+      |                 ^~
+platform/dsui/dsui.c:261:51: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  261 |                 if ( ds_ptr_x < 0 ) ds_ptr_x = 0; if ( ds_ptr_x > DS_BOT_W - 1 ) ds_ptr_x = DS_BOT_W - 1;
+      |                                                   ^~
+platform/dsui/dsui.c:262:17: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+  262 |                 if ( ds_ptr_y < 0 ) ds_ptr_y = 0; if ( ds_ptr_y > DS_BOT_H - 1 ) ds_ptr_y = DS_BOT_H - 1;
+      |                 ^~
+platform/dsui/dsui.c:262:51: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+  262 |                 if ( ds_ptr_y < 0 ) ds_ptr_y = 0; if ( ds_ptr_y > DS_BOT_H - 1 ) ds_ptr_y = DS_BOT_H - 1;
+      |                                                   ^~
+platform/dsui/dsui.c: In function 'dsui_scenario_loaded':
+platform/dsui/dsui.c:475:39: warning: format '%u' expects argument of type 'unsigned int', but argument 2 has type 'Uint32' {aka 'long unsigned int'} [-Wformat=]
+  475 |     printf( "load: engine_init total %u ms\n", SDL_GetTicks() - load_t0 );
+      |                                      ~^        ~~~~~~~~~~~~~~~~~~~~~~~~
+      |                                       |                       |
+      |                                       unsigned int            Uint32 {aka long unsigned int}
+      |                                      %lu
+platform/dsui/dsui.c: In function 'draw_map_overlays':
+platform/dsui/dsui.c:1141:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 1141 |     if ( mx0 < 0 ) mx0 = 0; if ( my0 < 0 ) my0 = 0;
+      |     ^~
+platform/dsui/dsui.c:1141:29: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 1141 |     if ( mx0 < 0 ) mx0 = 0; if ( my0 < 0 ) my0 = 0;
+      |                             ^~
+platform/dsui/dsui.c:1142:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 1142 |     if ( mx1 >= map_w ) mx1 = map_w - 1; if ( my1 >= map_h ) my1 = map_h - 1;
+      |     ^~
+platform/dsui/dsui.c:1142:42: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 1142 |     if ( mx1 >= map_w ) mx1 = map_w - 1; if ( my1 >= map_h ) my1 = map_h - 1;
+      |                                          ^~
+platform/dsui/dsui_gfx.c
+platform/dsui/dsui_screens.c
+platform/dsui/dsui_screens.c: In function 'pu_free':
+platform/dsui/dsui_screens.c:1120:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 1120 |     if ( pu_units ) list_delete( pu_units ); pu_units = 0;
+      |     ^~
+platform/dsui/dsui_screens.c:1120:46: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 1120 |     if ( pu_units ) list_delete( pu_units ); pu_units = 0;
+      |                                              ^~~~~~~~
+platform/dsui/dsui_screens.c:1121:5: warning: this 'if' clause does not guard... [-Wmisleading-indentation]
+ 1121 |     if ( pu_trsp ) list_delete( pu_trsp ); pu_trsp = 0;
+      |     ^~
+platform/dsui/dsui_screens.c:1121:44: note: ...this statement, but the latter is misleadingly indented as if it were guarded by the 'if'
+ 1121 |     if ( pu_trsp ) list_delete( pu_trsp ); pu_trsp = 0;
+      |                                            ^~~~~~~
+platform/dsui/dsui_screens.c: In function 'scen_build':
+platform/dsui/dsui_screens.c:705:44: warning: '%s' directive output may be truncated writing up to 127 bytes into a region of size 53 [-Wformat-truncation=]
+  705 |         snprintf( t, sizeof t, "Scenarios: %s", scen_group );
+      |                                            ^~   ~~~~~~~~~~
+In function 'scen_build',
+    inlined from 'scen_build' at platform/dsui/dsui_screens.c:683:13:
+platform/dsui/dsui_screens.c:705:9: note: 'snprintf' output between 12 and 139 bytes into a destination of size 64
+  705 |         snprintf( t, sizeof t, "Scenarios: %s", scen_group );
+      |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+linking lgeneral.elf (sound=1)
+packaging lgeneral.3dsx (with --smdh)
