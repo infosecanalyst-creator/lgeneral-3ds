@@ -539,11 +539,12 @@ static char cf_text[256];
 static int cf_engine = 0;
 static void (*cf_yes)( void ) = 0;
 static int cf_focus = 0;   /* 0 = No (the default), 1 = Yes */
+static int cf_title = 0;   /* asked from the title screen: No goes back to it */
 
 void scr_open_confirm( const char *text, int engine_owned, void (*yes)( void ) )
 {
     snprintf( cf_text, sizeof cf_text, "%s", text && *text ? text : "Are you sure?" );
-    cf_engine = engine_owned; cf_yes = yes; cf_focus = 0;
+    cf_engine = engine_owned; cf_yes = yes; cf_focus = 0; cf_title = 0;
     ui_mode = UM_CONFIRM;
     ds_mark_all();
 }
@@ -570,6 +571,7 @@ static void confirm_input( void )
     ui_mode = UM_NONE;
     if ( cf_engine ) dsb_press( yes ? ID_OK : ID_CANCEL );
     else if ( yes && cf_yes ) cf_yes();
+    else if ( cf_title ) scr_open_title();
     ds_mark_all();
 }
 
@@ -905,6 +907,8 @@ static void title_draw_top( void )
     dg_text( &dsfont_small, 6, DS_TOP_H - 17, DC_DIM, "LGeneral 1.4.4 (c) Michael Speck - GPL. 3DS edition." );
 }
 
+static void title_quit_yes( void ) { scr_close(); action_queue_quit(); }
+
 static void title_input( void )
 {
     int r = list_input();
@@ -919,8 +923,9 @@ static void title_input( void )
         case T_OPTIONS: scr_open_options(); break;
         case T_HELP: scr_open_help(); break;
         case T_QUIT:
-            scr_close();
-            action_queue_quit();
+            /* house rule: leaving always asks, focus on No (a stray tap on Quit closed the game) */
+            scr_open_confirm( "Exit LGeneral?#Your saved games are kept.", 0, title_quit_yes );
+            cf_title = 1;
             break;
     }
 }
