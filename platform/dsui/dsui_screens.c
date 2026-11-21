@@ -524,12 +524,19 @@ static void manual_input( void )
 static void manual_draw_top( void )
 {
     char t[24];
+    const char *foot = dsui_lefty ? "Sticks: scroll   A/B/X/Y, L / R: section   D-Down / START: close"
+                                  : "Sticks: scroll   D-Pad, L / R: section   B / START: close";
     dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
-    dg_panel( 6, 6, ds_tw - 12, DS_TOP_H - 12 );
+    dg_panel( 4, 4, ds_tw - 8, DS_TOP_H - 8 );
     snprintf( t, sizeof t, "%d / %d", man_page + 1, MANUAL_PAGES );
-    dg_text_r( &dsfont_small, ds_tw - 16, 15, DC_DIM, t );
-    dg_text_fit( &dsfont_title, 16, 12, ds_tw - 32 - 50, DC_ACCENT, manual_title[man_page] );
-    dg_text_wrap( &dsfont_body, 16, 36, ds_tw - 32, DS_TOP_H - 48, DC_TEXT, manual_body[man_page], 0 );
+    dg_text_r( &dsfont_small, ds_tw - 16, 12, DC_DIM, t );
+    dg_text_fit( &dsfont_title, 16, 9, ds_tw - 32 - 50, DC_ACCENT, manual_title[man_page] );
+    dg_text_wrap( &dsfont_body, 16, 30, ds_tw - 32, DS_TOP_H - 48, DC_TEXT, manual_body[man_page], 0 );
+    /* footer: the house wording (the same in every port); a tighter spelling when the page is on the 320 px screen */
+    if ( dg_text_w( &dsfont_small, foot ) > ds_tw - 32 )
+        foot = dsui_lefty ? "Sticks: scroll  ABXY, L/R: section  D-Down/START: close"
+                          : "Sticks: scroll  D-Pad, L/R: section  B/START: close";
+    dg_text_fit( &dsfont_small, 16, DS_TOP_H - 19, ds_tw - 32, DC_DIM, foot );
 }
 
 /* ======================================================================
