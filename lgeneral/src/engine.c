@@ -2149,11 +2149,15 @@ static void engine_end_frame()
         image_draw( move_image );
     }
     gui_draw();
+#ifdef DSUI
+    dsui_throttle = 1;   /* LG-04: at most one present per 15 ms from this loop; dsui_frame shows the rest */
+#endif
     if ( full_refresh )
         refresh_screen( 0, 0, 0, 0 );
     else
         refresh_rects();
 #ifdef DSUI
+    dsui_throttle = 0;
     dsui_frame();
 #endif
 }

@@ -1777,14 +1777,27 @@ static void present_swapped( void )
     if ( SDL_MUSTLOCK( ds_screen ) ) SDL_UnlockSurface( ds_screen );
 }
 
+/* LG-04: the engine loop (engine_end_frame) presented after every refresh, and each present
+   redraws the touch-screen map and waits for the vertical blank in SDL_UpdateRect, so an AI
+   animation step or any small redraw held the loop for a whole frame. In that loop presents
+   now come at most once per 15 ms (one per vertical blank); what was drawn in between is kept
+   dirty and shown by the next present. Every other caller still presents at once.
+   debug.txt: a "frame:" line every 5 s (presents, the ones held back, present time avg/max). */
+int dsui_throttle = 0;   /* set by engine_end_frame around its refresh */
+static Uint32 last_present_ms = 0;
+static Uint32 st_t0 = 0, st_n = 0, st_held = 0, st_ms = 0, st_max = 0;
+static int present_due( void ) { return SDL_GetTicks() - last_present_ms >= 15; }
+
 void ds_present( void )
 {
     unsigned sig;
+    Uint32 t_start;
     if ( !ds_screen ) return;
     dg_target( ds_screen );
     sig = state_sig();
     if ( sig != last_sig ) { last_sig = sig; ds_top_dirty = 1; ds_bot_dirty = 1; }
     if ( !ds_top_dirty && !ds_bot_dirty ) return;
+    t_start = last_present_ms = SDL_GetTicks();
 #ifdef DSUI_PROF
     { static Uint32 t0 = 0, n = 0, nt = 0, nb = 0; n++; nt += ds_top_dirty; nb += ds_bot_dirty;
       if ( SDL_GetTicks() - t0 >= 1000 ) { printf( "prof: mode %d presents/s %u (top %u bot %u)\n", ui_mode, n, nt, nb ); n = nt = nb = 0; t0 = SDL_GetTicks(); } }
@@ -1812,6 +1825,16 @@ void ds_present( void )
     if ( ds_swapped ) present_swapped();
     else SDL_UpdateRect( ds_screen, 0, 0, 0, 0 );
     ds_top_dirty = ds_bot_dirty = 0;
+    if ( DS_DEBUG_LOG ) {
+        Uint32 now = SDL_GetTicks(), d = now - t_start;
+        st_n++; st_ms += d; if ( d > st_max ) st_max = d;
+        if ( !st_t0 ) st_t0 = now;
+        if ( now - st_t0 >= 5000 ) {
+            printf( "frame: %u presents in %u ms, %u held back, present avg %u ms max %u ms (mode %d)\n",
+                    (unsigned)st_n, (unsigned)( now - st_t0 ), (unsigned)st_held, (unsigned)( st_ms / st_n ), (unsigned)st_max, ui_mode );
+            st_t0 = now; st_n = st_held = st_ms = st_max = 0;
+        }
+    }
 }
 
 /* called by the screens module to draw the live map under an overlay */
@@ -1821,11 +1844,13 @@ void dsui_canvas_updated( int count, SDL_Rect *rects )
 {
     (void)count; (void)rects;
     ds_bot_dirty = 1;
+    if ( dsui_throttle && !present_due() ) { st_held++; return; }   /* LG-04: dsui_frame shows it */
     ds_present();
 }
 
 void dsui_frame( void )
 {
+    if ( !present_due() ) { if ( ds_top_dirty || ds_bot_dirty ) st_held++; return; }   /* LG-04: next loop */
     ds_present();
 }
 

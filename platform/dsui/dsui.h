@@ -31,6 +31,7 @@ SDL_Surface *dsui_video_init( void );
 void dsui_canvas_updated( int count, SDL_Rect *rects );
 /* called once per engine frame (end of frame) */
 void dsui_frame( void );
+extern int dsui_throttle;   /* LG-04: engine_end_frame's refresh is held to one present per 15 ms */
 /* called at the start of engine_check_events, after SDL_PumpEvents; runs input + UI logic.
    returns 1 if a native modal UI owns the input this frame (engine input is skipped) */
 int  dsui_tick( void );
