@@ -31,7 +31,9 @@ stereo output). `make DSUI=0` still builds the old single-screen 640x480 port.
     bash tools/fetch-data.sh      # first time only (WITH_PG=1 adds Panzer General data you own)
     bash build-lgeneral.sh
 
-Output goes to one place only: `C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral\`.
+Output goes to one place only: the game to `C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral.3dsx`, the data to
+`C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral\`. On the 3DS the game is `sdmc:/3ds/lgeneral.3dsx` (directly in
+`/3ds`) and the data is in `sdmc:/3ds/lgeneral/`.
 Needs `3ds-sdl` and `3ds-sdl_mixer` from portlibs (`SOUND=0` builds without sound).
 
 ## Install over Wi-Fi

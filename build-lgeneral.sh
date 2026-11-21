@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build lgeneral.3dsx and sync it + game data to the one SD-CARD location:
-#   C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral\
+#   C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral.3dsx   (the game, directly in 3ds\)
+#   C:\devkitPro\3ds-projects\SD-CARD\3ds\lgeneral\        (game data)
 # Run from the devkitPro MSYS2 shell:  bash build-lgeneral.sh   (extra args go to make, e.g. SOUND=1)
 set -uo pipefail
 cd "$(dirname "$0")"
@@ -12,6 +13,7 @@ export PATH="$DEVKITPRO/tools/bin:$DEVKITARM/bin:$PATH"
 
 SD_ROOT="${SD_ROOT:-$(cd .. && pwd)/SD-CARD}"
 OUT="$SD_ROOT/3ds/lgeneral"
+APP="$SD_ROOT/3ds/lgeneral.3dsx"
 
 echo "== building (log: build.log)"
 if ! make -j"$(nproc)" "$@" 2>&1 | tee build.log; then
@@ -21,9 +23,9 @@ fi
 
 echo "== syncing to $OUT"
 mkdir -p "$OUT/config"
-cp -f lgeneral.3dsx "$OUT/"
+cp -f lgeneral.3dsx "$APP"
 cp -ru data/. "$OUT/"          # game data: only newer files are copied
 
-echo "== OK: $OUT/lgeneral.3dsx ($(du -h lgeneral.3dsx | cut -f1)), data $(du -sh "$OUT" | cut -f1)"
+echo "== OK: $APP ($(du -h lgeneral.3dsx | cut -f1)), data $(du -sh "$OUT" | cut -f1)"
 echo "   next: bash deploy-lgeneral.sh <3DS-IP> ftp   (first time: data over ftpd)"
 echo "         bash deploy-lgeneral.sh <3DS-IP>       (each new build: 3dslink)"
