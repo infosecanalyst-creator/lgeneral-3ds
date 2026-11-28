@@ -128,6 +128,7 @@ int terrain_load( char *fname )
     /* log info */
     int  log_dot_limit = 40; /* maximum of dots */
     char log_str[128] = "";
+    char **img_name = 0; /* file named by each weather type of the terrain being loaded */
     sprintf( path, "%s/maps/%s", get_gamedir(), fname );
     if ( ( pd = parser_read_file( fname, path ) ) == 0 ) goto parser_failure;
     domain = determine_domain(pd, fname);
@@ -147,6 +148,8 @@ int terrain_load( char *fname )
             weather_types[i].flags |= check_flag( flag, fct_terrain );
         i++;
     }
+    img_name = calloc( weather_type_count > 0 ? weather_type_count : 1, sizeof( char* ) );
+    if ( !img_name ) goto failure;
     /* hex tile geometry */
     if ( !parser_get_int( pd, "hex_width", &hex_w ) ) goto parser_failure;
     if ( !parser_get_int( pd, "hex_height", &hex_h ) ) goto parser_failure;
@@ -203,6 +206,17 @@ int terrain_load( char *fname )
         for ( j = 0; j < weather_type_count; j++ ) {
             sprintf( path, "image/%s", weather_types[j].id );
             if ( !parser_get_value( sub, path, &str, 0 ) ) goto parser_failure;
+            /* LG-Q1: the Panzer General set has 12 weather types but only 3 pictures per terrain
+               (dry, mud, ice), each named by four of them. Loading every name again made the
+               load four times as long and took four times the memory: share the picture of an
+               earlier weather type that names the same file. */
+            for ( k = 0; k < j; k++ )
+                if ( img_name[k] && strcmp( img_name[k], str ) == 0 ) break;
+            img_name[j] = str;
+            if ( k < j ) {
+                terrain_types[i].images[j] = terrain_types[i].images[k];
+            }
+            else
             if ( STRCMP( "default", str ) && j > 0 ) {
                 /* just a pointer */
                 terrain_types[i].images[j] = terrain_types[i].images[0];
@@ -218,9 +232,11 @@ int terrain_load( char *fname )
         /* fog image */
         terrain_types[i].images_fogged = calloc( weather_type_count, sizeof( SDL_Surface* ) );
         for ( j = 0; j < weather_type_count; j++ ) {
-            if ( terrain_types[i].images[j] == terrain_types[i].images[0] && j > 0 ) {
-                /* just a pointer */
-                terrain_types[i].images_fogged[j] = terrain_types[i].images_fogged[0];
+            for ( k = 0; k < j; k++ )
+                if ( terrain_types[i].images[j] == terrain_types[i].images[k] ) break;
+            if ( k < j ) {
+                /* just a pointer (the same picture as an earlier weather type) */
+                terrain_types[i].images_fogged[j] = terrain_types[i].images_fogged[k];
             }
             else {
                 terrain_types[i].images_fogged[j] = create_surf( terrain_types[i].images[j]->w, terrain_types[i].images[j]->h, SDL_SWSURFACE );
@@ -290,6 +306,7 @@ int terrain_load( char *fname )
 #endif
     }
     parser_free( &pd );
+    free( img_name ); img_name = 0;
 #ifdef DSUI
     TT( tt_rest );
     printf( "load: terrain: parse %u, icons %u, images %u, fog %u, tables %u, progress %u ms (%d types)\n",
@@ -302,6 +319,7 @@ int terrain_load( char *fname )
 parser_failure:        
     fprintf( stderr, "%s\n", parser_get_error() );
 failure:
+    free( img_name );
     terrain_delete();
     if ( pd ) parser_free( &pd );
     free(domain);
@@ -323,9 +341,10 @@ void terrain_delete( void )
             if ( terrain_types[i].images ) {
                 for ( j = weather_type_count - 1; j >= 0; j-- ) 
                     if ( terrain_types[i].images[j] ) {
-                        if ( terrain_types[i].images[j] == terrain_types[i].images[0] )
-                            if ( j > 0 )
-                                continue; /* only a pointer */
+                        int k2, shared = 0;
+                        for ( k2 = 0; k2 < j; k2++ )
+                            if ( terrain_types[i].images[j] == terrain_types[i].images[k2] ) shared = 1;
+                        if ( shared ) continue; /* only a pointer */
                         SDL_FreeSurface( terrain_types[i].images[j] );
                     }
                 free( terrain_types[i].images );
@@ -333,9 +352,10 @@ void terrain_delete( void )
             if ( terrain_types[i].images_fogged ) {
                 for ( j = weather_type_count - 1; j >= 0; j-- )
                     if ( terrain_types[i].images_fogged[j] ) {
-                        if ( terrain_types[i].images_fogged[j] == terrain_types[i].images_fogged[0] )
-                            if ( j > 0 )
-                                continue; /* only a pointer */
+                        int k2, shared = 0;
+                        for ( k2 = 0; k2 < j; k2++ )
+                            if ( terrain_types[i].images_fogged[j] == terrain_types[i].images_fogged[k2] ) shared = 1;
+                        if ( shared ) continue; /* only a pointer */
                         SDL_FreeSurface( terrain_types[i].images_fogged[j] );
                     }
                 free( terrain_types[i].images_fogged );

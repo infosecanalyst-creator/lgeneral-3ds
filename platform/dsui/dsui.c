@@ -479,7 +479,7 @@ static Uint32 load_t0 = 0;
    type; each call repaints both screens at once (the loader does not return to the main loop). */
 static int load_stage = -1, load_pct = 0;
 static const char *load_names[DSUI_LOAD_STAGES] = { "Scenario and nations", "Unit library", "Map and terrain", "Placing units" };
-static const int load_from[DSUI_LOAD_STAGES + 1] = { 0, 4, 20, 94, 100 };   /* share of the bar per stage */
+static const int load_from[DSUI_LOAD_STAGES + 1] = { 0, 3, 30, 97, 100 };   /* share of the bar per stage */
 void dsui_engine_reset( void )
 {
     load_t0 = SDL_GetTicks();

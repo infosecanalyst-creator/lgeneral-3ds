@@ -978,11 +978,12 @@ static void title_draw_top( void )
     dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
     if ( gui && gui->bkgnd ) {
         int sw = gui->bkgnd->w, sh = gui->bkgnd->h;
-        /* LG-U3: the art fills the screen's width (no side bars); what does not fit is cut evenly top and bottom */
+        /* LG-U3: the art fills the screen's width (no side bars). The name is at the top of the picture,
+           so what does not fit is cut at the bottom (the credit line covers that edge anyway). */
         int ch = sw * DS_TOP_H / ds_tw;
         if ( ch > sh ) ch = sh;
         if ( ch < 1 ) ch = 1;
-        dg_blit_scaled( gui->bkgnd, 0, ( sh - ch ) / 2, sw, ch, 0, 0, ds_tw, DS_TOP_H );
+        dg_blit_scaled( gui->bkgnd, 0, 0, sw, ch, 0, 0, ds_tw, DS_TOP_H );
     }
     dg_fill_a( 0, DS_TOP_H - 22, ds_tw, 22, DC_BG, 190 );
     dg_text( &dsfont_small, 6, DS_TOP_H - 17, DC_DIM, "LGeneral 1.4.4 (c) Michael Speck - GPL. 3DS edition." );

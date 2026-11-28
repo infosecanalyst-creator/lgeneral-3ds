@@ -20,11 +20,11 @@ GitHub Actions builds `lgeneral.3dsx` on every push (Actions tab → latest run 
 - **Top screen**: selected unit, battle forecast, hex info, combat log, minimap and objectives.
 - Native touch menus for everything the PC version does with windows: title, scenario and campaign
   pickers with setup, campaign briefings, purchase, deploy, save/load (10 slots + autosave),
-  unit list, overview map, options and a 4-page How to play.
+  unit list, overview map, settings and a built-in manual.
 - Autosave at the start of each of your turns; **Continue** on the title screen resumes it. Quit to title, Exit game and HOME > Close save into that autosave first; if the save fails you are asked Quit / Exit anyway. Saves go to a temporary file and are moved into place, so a failed save keeps the old one.
 
 Sound effects play when the 3DS has its DSP firmware dumped (`sdmc:/3ds/dspfirm.cdc`); otherwise the
-game runs silently. Options has Sound and Volume. Not yet: stereoscopic 3D (SDL 1.2 on 3DS has no
+game runs silently. Settings has Sound. Not yet: stereoscopic 3D (SDL 1.2 on 3DS has no
 stereo output). `make DSUI=0` still builds the old single-screen 640x480 port.
 
 ## Build (devkitPro MSYS2 shell)
@@ -45,7 +45,7 @@ Needs `3ds-sdl` and `3ds-sdl_mixer` from portlibs (`SOUND=0` builds without soun
 
 ## Manual
 
-The in-game manual (title screen or Start > Manual) is compiled from `docs/manual.txt`;
+The in-game manual (title screen or START > MANUAL) is compiled from `docs/manual.txt`;
 after editing it run `python3 tools/gen_manual.py`. The same text is installed as
 `sdmc:/3ds/lgeneral/MANUAL.txt`.
 
@@ -55,7 +55,7 @@ after editing it run `python3 tools/gen_manual.py`. The same text is installed a
 | --- | --- |
 | Tap your unit | Select it (tap again: switch air/ground unit on that hex, or deselect) |
 | Tap a hex | Move there |
-| Tap an enemy | Battle forecast on the top screen; tap again to attack (Options: one-tap attack) |
+| Tap an enemy | Battle forecast on the top screen; tap again to attack (Settings: one-tap attack) |
 | Drag a unit | Move it in one motion |
 | Drag empty map | Pan |
 | Long-press a unit | Full statistics |
@@ -68,7 +68,7 @@ after editing it run `python3 tools/gen_manual.py`. The same text is installed a
 | Hold L | Show every enemy's threat range |
 | ZL / ZR | Zoom out / in |
 | C-stick | Pan |
-| Start | Menu |
+| START | Menu: RESUME, MANUAL, SAVE GAME, LOAD GAME, SETTINGS, ORDERS AND INFO (unit list, purchase, deploy, end turn, info, encyclopedia, restart, quit to title), EXIT GAME |
 | Select | Overview map (tap to jump) |
 
 Green dot = unit can still move, amber dot = can still attack.
