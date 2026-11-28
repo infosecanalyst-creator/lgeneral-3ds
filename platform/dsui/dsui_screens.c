@@ -1939,6 +1939,12 @@ void scr_draw_top( void )
         case UM_UNITLIST:
             ds_status_bar();
             if ( n_items > 0 ) ds_unit_card( 4, 24, ds_tw - 8, 212, ulist[items[sel].id - 1], "UNIT", 1 );
+            else {   /* LG-U2: never an empty screen */
+                dg_panel( 4, 24, ds_tw - 8, 212 );
+                dg_text( &dsfont_title, 14, 32, DC_ACCENT, "No units on the map yet" );
+                dg_text_wrap( &dsfont_body, 14, 62, ds_tw - 28, 160, DC_TEXT,
+                              "Units appear here once they are placed.#During deployment, tap a unit in the strip on the left of the map, then a highlighted hex.", 0 );
+            }
             break;
         case UM_OVERVIEW:
             ds_status_bar();
