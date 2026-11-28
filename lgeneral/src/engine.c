@@ -811,7 +811,9 @@ static void engine_show_turn_info()
                     snprintf( line, sizeof line, "#%s#", sMessages[n].message );
                     strncat( body, line, sizeof body - strlen( body ) - 1 );
                 }
-        dsui_status_screen( cur_player->name, body, cur_player->ctrl == PLAYER_CTRL_HUMAN ? 0 : 900 );
+        /* LG-X4: the turn card goes on by itself (a tap or A hurries it): the enemy's after 0.9 s, yours after
+           1.5 s. It waits for a tap only when it has something to read (a scenario message, new units). */
+        dsui_status_screen( cur_player->name, body, cur_player->ctrl != PLAYER_CTRL_HUMAN ? 900 : strstr( body, "##" ) ? 0 : 1500 );
         return;
     }
 #endif

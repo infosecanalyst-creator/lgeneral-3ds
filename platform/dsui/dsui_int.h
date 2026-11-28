@@ -73,6 +73,10 @@ const char *ds_class_name( int cls );
 /* screens API (dsui_screens.c) */
 void scr_open_title( void );
 void scr_open_game_menu( void );
+void scr_open_start_menu( void );                  /* START: the menu's first page, RESUME highlighted */
+void ds_save_name( char *out, size_t n, const char *what );   /* "<what>, turn N<tab>date" (LG-Q4) */
+const char *ds_slot_label( int id, const char **date );       /* a slot's name without the date */
+void ds_toast( const char *text );                 /* a short line over the map for 2.5 s (LG-X2) */
 void scr_open_confirm( const char *text, int engine_owned, void (*yes)( void ) );
 void scr_open_purchase( void );
 void scr_open_split( void );

@@ -25,6 +25,9 @@
 #include "campaign.h"
 #include "scenario.h"
 #include "localize.h"
+#ifdef DSUI
+#include "dsui.h"
+#endif
 
 #if DEBUG_CAMPAIGN
 #  include <stdio.h>
@@ -291,6 +294,9 @@ int scen_load( const char *fname )
     int unit_delayed = 0;
 	
     scen_delete();
+#ifdef DSUI
+    dsui_load_progress( DSUI_LOAD_SCEN, 0 );
+#endif
     sprintf( path, "%s/scenarios/%s", get_gamedir(), fname );
     if ( ( pd = parser_read_file( fname, path ) ) == 0 ) goto parser_failure;
     free(scen_domain);
@@ -323,6 +329,9 @@ int scen_load( const char *fname )
     lt_prev = SDL_GetTicks();
     if ( !nations_load( str ) ) goto failure;
     LT( "nations" );
+#ifdef DSUI
+    dsui_load_progress( DSUI_LOAD_UNITS, 0 );
+#endif
     /* unit libs */
     if ( !parser_get_pdata( pd, "unit_db", &sub ) ) {
         /* check the scenario file itself but only for the main entry */
@@ -348,6 +357,9 @@ int scen_load( const char *fname )
         }
     }
     LT( "unit libs" );
+#ifdef DSUI
+    dsui_load_progress( DSUI_LOAD_MAP, 0 );
+#endif
     /* map and weather */
     if ( !parser_get_value( pd, "map", &str, 0 ) ) {
         sprintf(path, "../scenarios/%s", fname); /* check the scenario file itself */
@@ -357,6 +369,9 @@ int scen_load( const char *fname )
     write_line( sdl.screen, log_font, log_str, log_x, &log_y ); refresh_screen( 0, 0, 0, 0 );
     if ( !map_load( str ) ) goto failure;
     LT( "map+terrain" );
+#ifdef DSUI
+    dsui_load_progress( DSUI_LOAD_PLACE, 0 );
+#endif
     weather = calloc( scen_info->turn_limit, sizeof( int ) );
     if ( parser_get_values( pd, "weather", &values ) ) {
         list_reset( values ); i = 0;

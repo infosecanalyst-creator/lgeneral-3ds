@@ -45,6 +45,9 @@ void dsui_label( void *label, const char *text );      /* engine wrote to a labe
 void dsui_turn_begins( int human );                    /* a player's turn starts (after turn info) */
 void dsui_scenario_loaded( void );                     /* engine_init finished */
 void dsui_engine_reset( void );                        /* engine_init starts (map data not valid yet) */
+/* LG-Q1: the loader reports where it is (stage, 0-100 inside the stage); the load screen shows a bar */
+enum { DSUI_LOAD_SCEN = 0, DSUI_LOAD_UNITS, DSUI_LOAD_MAP, DSUI_LOAD_PLACE, DSUI_LOAD_STAGES };
+void dsui_load_progress( int stage, int pct );
 /* blocking status screen; timeout_ms <= 0 waits for input */
 void dsui_status_screen( const char *title, const char *text, int timeout_ms );
 

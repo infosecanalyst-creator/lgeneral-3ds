@@ -13,6 +13,7 @@
 
 #include "dsui_int.h"
 #include <strings.h>
+#include <time.h>
 #ifdef WITH_SOUND
 #include "audio.h"
 extern int audio_ok;
@@ -83,6 +84,14 @@ static void list_clamp( void )
     if ( scroll_top < 0 ) scroll_top = 0;
 }
 
+/* put the highlight on the first row that can be used */
+static void list_first_enabled( void )
+{
+    int i;
+    for ( i = 0; i < n_items; i++ ) if ( items[i].enabled ) { sel = i; break; }
+    list_clamp();
+}
+
 static void draw_list( void )
 {
     int i, rows = list_rows();
@@ -125,8 +134,9 @@ static int list_input( void )
 {
     int rows = list_rows();
     static int acc = 0;
-    if ( in.rep & K_UP ) { sel--; list_clamp(); }
-    if ( in.rep & K_DOWN ) { sel++; list_clamp(); }
+    /* LG-U5: the D-pad steps over rows that cannot be used (they stay visible, greyed) */
+    if ( in.rep & K_UP ) { int i = sel - 1; while ( i >= 0 && !items[i].enabled ) i--; if ( i >= 0 ) sel = i; list_clamp(); }
+    if ( in.rep & K_DOWN ) { int i = sel + 1; while ( i < n_items && !items[i].enabled ) i++; if ( i < n_items ) sel = i; list_clamp(); }
     if ( in.rep & K_LEFT ) { sel -= rows; list_clamp(); }
     if ( in.rep & K_RIGHT ) { sel += rows; list_clamp(); }
     if ( in.pressed & K_B ) return L_BACK;
@@ -238,7 +248,7 @@ void dsui_options_tick( void )
 static void build_options( void )
 {
     int keep = sel;
-    lst_init( "Options", 0 );
+    lst_init( "Settings", 0 );
     lst_add( "Attack needs a forecast tap first", dsui_quick_attack ? "Off" : "On", 1, 1 );
     lst_add( "Auto-select the next ready unit", dsui_auto_advance ? "On" : "Off", 2, 1 );
     lst_add( "Unit badges (side + strength)", config.show_bar ? "On" : "Off", 3, 1 );
@@ -284,7 +294,7 @@ static void options_draw_top( void )
     snprintf( t, sizeof t, "%s", help[k] );
     nl = strchr( t, '#' );
     if ( nl ) { *nl = 0; top_text_panel( t, nl + 1, 0 ); }
-    else top_text_panel( "Options", t, 0 );
+    else top_text_panel( "Settings", t, 0 );
 }
 
 void scr_open_options( void )
@@ -457,38 +467,32 @@ void scr_open_help( void ) { scr_open_manual(); }
    Manual (docs/manual.txt, compiled in): page on top, chapters below
    ====================================================================== */
 #include "dsui_manual.h"
-static int man_page = 0, man_return = UM_NONE, man_scroll_t = 0;
+static int man_page = 0, man_return = UM_NONE, man_skip = 0;
+#define MAN_TEXT_Y 30
+#define MAN_LINES ( ( DS_TOP_H - 48 ) / ( dsfont_body.height + 1 ) )
 
-static int man_chapter_of( int page )
+/* LG-X6: one chapter is one page; the sticks scroll it line by line */
+static int man_max_skip( void )
 {
-    int c = 0, i;
-    for ( i = 0; i < MANUAL_CHAPTERS; i++ ) if ( manual_chapter_page[i] <= page ) c = i;
-    return c;
+    int n = dg_text_lines( &dsfont_body, ds_tw - 32 - 6, manual_body[man_page] ) - MAN_LINES;
+    return n > 0 ? n : 0;
 }
 static void man_build( void )
 {
     int i;
+    static char lh[24];
     lst_init( "Manual - tap a chapter", 0 );
     for ( i = 0; i < MANUAL_CHAPTERS; i++ ) lst_add( manual_chapter_name[i], 0, i + 1, 1 );
-    lst_buttons( "< Prev", "Close", "Next >" );
-    btn_on[0] = man_page > 0;
-    btn_on[2] = man_page < MANUAL_PAGES - 1;
-    sel = man_chapter_of( man_page ); list_clamp();
+    snprintf( lh, sizeof lh, "Left hand: %s", dsui_lefty ? "on" : "off" );
+    lst_buttons( lh, "Close", 0 );
+    sel = man_page; list_clamp();
 }
 void scr_open_manual( void )
 {
-    if ( ui_mode != UM_MANUAL ) man_return = ui_mode;
+    if ( ui_mode != UM_MANUAL ) { man_return = ui_mode; man_skip = 0; }
     ui_mode = UM_MANUAL;
+    if ( man_page < 0 || man_page >= MANUAL_PAGES ) man_page = 0;
     man_build();
-#ifndef __3DS__
-    {   /* authoring check: report pages that do not fit the top screen */
-        int i, cap = ( DS_TOP_H - 48 ) / ( dsfont_body.height + 1 );
-        for ( i = 0; i < MANUAL_PAGES; i++ ) {
-            int n = dg_text_lines( &dsfont_body, ds_tw - 32, manual_body[i] );
-            if ( n > cap ) printf( "manual: page %d (%s) has %d lines, %d fit\n", i, manual_title[i], n, cap );
-        }
-    }
-#endif
     ds_mark_all();
 }
 static void man_goto( int page )
@@ -496,42 +500,55 @@ static void man_goto( int page )
     if ( page < 0 ) page = 0;
     if ( page > MANUAL_PAGES - 1 ) page = MANUAL_PAGES - 1;
     if ( page == man_page ) return;
-    man_page = page;
+    man_page = page; man_skip = 0;
     man_build();
     ds_mark_all();
 }
 static void manual_input( void )
 {
-    int r, c = man_chapter_of( man_page );
+    int r, sel0;
     /* Circle Pad / C-Stick up and down scroll the text (hold to keep scrolling) */
-    if ( in.rep & ( K_PDOWN | K_CDOWN ) ) { man_scroll_t = 0; man_goto( man_page + 1 ); return; }
-    if ( in.rep & ( K_PUP | K_CUP ) ) { man_scroll_t = 0; man_goto( man_page - 1 ); return; }
-    /* D-Pad moves between the section buttons (left/right the same as up/down) */
-    if ( in.rep & K_LEFT ) { if ( c > 0 ) sel = c - 1; list_clamp(); return; }
-    if ( in.rep & K_RIGHT ) { if ( c + 1 < MANUAL_CHAPTERS ) sel = c + 1; list_clamp(); return; }
-    if ( in.pressed & K_L ) { man_goto( manual_chapter_page[c > 0 ? c - 1 : 0] ); return; }
-    if ( in.pressed & K_R ) { if ( c + 1 < MANUAL_CHAPTERS ) man_goto( manual_chapter_page[c + 1] ); return; }
+    if ( in.rep & ( K_PDOWN | K_CDOWN ) ) { if ( man_skip < man_max_skip() ) { man_skip++; ds_top_dirty = 1; } return; }
+    if ( in.rep & ( K_PUP | K_CUP ) ) { if ( man_skip > 0 ) { man_skip--; ds_top_dirty = 1; } return; }
+    /* D-Pad moves between the section buttons and opens the one it lands on (left/right the same as up/down) */
+    if ( in.rep & K_LEFT ) { man_goto( man_page - 1 ); return; }
+    if ( in.rep & K_RIGHT ) { man_goto( man_page + 1 ); return; }
+    if ( in.pressed & K_L ) { man_goto( man_page - 1 ); return; }
+    if ( in.pressed & K_R ) { man_goto( man_page + 1 ); return; }
+    sel0 = sel;
     r = list_input();
-    if ( r == L_BTN0 ) man_goto( man_page - 1 );
-    else if ( r == L_BTN0 - 2 ) man_goto( man_page + 1 );
+    if ( r == L_BTN0 ) {   /* Left hand: the same switch as in Settings; remembered */
+        dsui_lefty = !dsui_lefty;
+        dsui_options_mark();
+        man_build();
+        ds_mark_all();
+    }
     else if ( r == L_BACK || r == L_BTN0 - 1 || ( in.pressed & K_START ) ) {
         if ( man_return == UM_TITLE ) scr_open_title();
         else if ( man_return == UM_MENU ) scr_open_game_menu();
         else scr_close();
     }
-    else if ( r >= 1 && r <= MANUAL_CHAPTERS ) man_goto( manual_chapter_page[r - 1] );
+    else if ( r >= 1 && r <= MANUAL_CHAPTERS ) man_goto( r - 1 );
+    else if ( sel != sel0 && ( in.rep & ( K_UP | K_DOWN ) ) ) man_goto( sel );
 }
 static void manual_draw_top( void )
 {
     char t[24];
     const char *foot = dsui_lefty ? "Sticks: scroll   A/B/X/Y, L / R: section   D-Down / START: close"
                                   : "Sticks: scroll   D-Pad, L / R: section   B / START: close";
+    int max = man_max_skip();
+    if ( man_skip > max ) man_skip = max;
     dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
     dg_panel( 4, 4, ds_tw - 8, DS_TOP_H - 8 );
     snprintf( t, sizeof t, "%d / %d", man_page + 1, MANUAL_PAGES );
     dg_text_r( &dsfont_small, ds_tw - 16, 12, DC_DIM, t );
     dg_text_fit( &dsfont_title, 16, 9, ds_tw - 32 - 50, DC_ACCENT, manual_title[man_page] );
-    dg_text_wrap( &dsfont_body, 16, 30, ds_tw - 32, DS_TOP_H - 48, DC_TEXT, manual_body[man_page], 0 );
+    dg_text_wrap( &dsfont_body, 16, MAN_TEXT_Y, ds_tw - 32 - 6, MAN_LINES * ( dsfont_body.height + 1 ), DC_TEXT, manual_body[man_page], man_skip );
+    if ( max > 0 ) {   /* scroll bar: how much of the chapter is above and below */
+        int bh = MAN_LINES * ( dsfont_body.height + 1 ), th = bh * MAN_LINES / ( MAN_LINES + max );
+        dg_fill( ds_tw - 13, MAN_TEXT_Y, 3, bh, DC_PANEL2 );
+        dg_fill( ds_tw - 13, MAN_TEXT_Y + ( bh - th ) * man_skip / max, 3, th, DC_BORDER );
+    }
     /* footer: the house wording (the same in every port); a tighter spelling when the page is on the 320 px screen */
     if ( dg_text_w( &dsfont_small, foot ) > ds_tw - 32 )
         foot = dsui_lefty ? "Sticks: scroll  ABXY, L/R: section  D-Down/START: close"
@@ -562,9 +579,10 @@ static void confirm_draw_bottom( void )
     dg_fill_a( DS_BOT_X, DS_BOT_Y, DS_BOT_W, DS_BOT_H, DC_BG, 170 );
     dg_panel( DS_BOT_X + 16, DS_BOT_Y + 36, DS_BOT_W - 32, 150 );
     dg_text_wrap( &dsfont_bold, DS_BOT_X + 26, DS_BOT_Y + 46, DS_BOT_W - 52, 80, DC_TEXT, cf_text, 0 );
-    ds_button( DS_BOT_X + 26, DS_BOT_Y + 132, 124, 44, "No", 1, cf_focus == 0 );
-    ds_button( DS_BOT_X + 170, DS_BOT_Y + 132, 124, 44, "Yes", 1, cf_focus == 1 );
-    if ( cf_focus == 0 ) dg_rect( DS_BOT_X + 24, DS_BOT_Y + 130, 128, 48, DC_ACCENT );
+    /* house order: YES on the left, NO on the right, the gold ring starts on NO */
+    ds_button( DS_BOT_X + 26, DS_BOT_Y + 132, 124, 44, "YES", 1, cf_focus == 1 );
+    ds_button( DS_BOT_X + 170, DS_BOT_Y + 132, 124, 44, "NO", 1, cf_focus == 0 );
+    if ( cf_focus == 1 ) dg_rect( DS_BOT_X + 24, DS_BOT_Y + 130, 128, 48, DC_ACCENT );
     else dg_rect( DS_BOT_X + 168, DS_BOT_Y + 130, 128, 48, DC_ACCENT );
 }
 
@@ -572,8 +590,8 @@ static void confirm_input( void )
 {
     int yes, no;
     if ( in.pressed & ( K_LEFT | K_RIGHT ) ) { cf_focus = !cf_focus; ds_mark_all(); return; }
-    yes = ( ( in.pressed & K_A ) && cf_focus == 1 ) || ( in.tap && ds_hit( in.tap_x, in.tap_y, 170, 132, 124, 44 ) );
-    no = ( ( in.pressed & K_A ) && cf_focus == 0 ) || ( in.pressed & K_B ) || ( in.tap && ds_hit( in.tap_x, in.tap_y, 26, 132, 124, 44 ) );
+    yes = ( ( in.pressed & K_A ) && cf_focus == 1 ) || ( in.tap && ds_hit( in.tap_x, in.tap_y, 26, 132, 124, 44 ) );
+    no = ( ( in.pressed & K_A ) && cf_focus == 0 ) || ( in.pressed & K_B ) || ( in.tap && ds_hit( in.tap_x, in.tap_y, 170, 132, 124, 44 ) );
     if ( !yes && !no ) return;
     ui_mode = UM_NONE;
     if ( cf_engine ) dsb_press( yes ? ID_OK : ID_CANCEL );
@@ -615,21 +633,56 @@ static int slots_save = 0;
 static int slots_from = UM_NONE;
 static int pending_slot = -1;
 
+/* LG-Q4: a save's name carries the day and time it was made after a tab ("POLAND, turn 3\tNov 21 4:21 PM"),
+   shown as the grey text on the right of its row. Saves made before this have no date. */
+void ds_save_name( char *out, size_t n, const char *what )
+{
+    time_t now = time( 0 );
+    struct tm *tm = localtime( &now );
+    char d[32] = "";
+    if ( tm && tm->tm_year > 100 ) {
+        static const char *mon[12] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
+        int h = tm->tm_hour % 12;
+        snprintf( d, sizeof d, "\t%s %d %d:%02d %s", mon[tm->tm_mon % 12], tm->tm_mday, h ? h : 12, tm->tm_min, tm->tm_hour < 12 ? "AM" : "PM" );
+    }
+    snprintf( out, n, "%s, turn %d%s", what, turn + 1, d );
+}
+/* the name without the date; the date (or "") through *date */
+const char *ds_slot_label( int id, const char **date )
+{
+    static char buf[2][160];
+    static int k;
+    char *b = buf[k = !k], *tab;
+    snprintf( b, sizeof buf[0], "%s", slot_get_name( id ) );
+    tab = strchr( b, '\t' );
+    if ( tab ) *tab++ = 0;
+    if ( date ) *date = tab ? tab : "";
+    return b;
+}
+
 static void build_slots( void )
 {
     int i;
     lst_init( slots_save ? "Save game - pick a slot" : "Load game", 0 );
     for ( i = 0; i < SLOT_COUNT; i++ ) {
-        char lab[80];
+        char lab[200];
+        const char *date = "";
         int valid = slot_is_valid( i );
         if ( i == SLOT_COUNT - 1 ) {
             if ( slots_save ) continue;            /* autosave slot is not for manual saves */
-            snprintf( lab, sizeof lab, "%s", valid ? slot_get_name( i ) : "Autosave (empty)" );
+            snprintf( lab, sizeof lab, "%s", valid ? ds_slot_label( i, &date ) : "Autosave (empty)" );
         }
-        else snprintf( lab, sizeof lab, "%d. %s", i + 1, valid ? slot_get_name( i ) : "(empty)" );
-        lst_add( lab, 0, i + 1, slots_save ? 1 : valid );
+        else snprintf( lab, sizeof lab, "%d. %s", i + 1, valid ? ds_slot_label( i, &date ) : "(empty)" );
+        /* never shorten the name with "...": when name and date do not both fit, the date is left out */
+        if ( dg_text_w( &dsfont_body, lab ) + dg_text_w( &dsfont_body, date ) > DS_BOT_W - 26 - 10 ) date = "";
+        lst_add( lab, date, i + 1, slots_save ? 1 : valid );
     }
     lst_buttons( "Back", 0, 0 );
+    if ( slots_save ) {   /* start on the first empty slot, so Save then A never lands on a used one */
+        for ( i = 0; i < n_items; i++ ) if ( !slot_is_valid( items[i].id - 1 ) ) { sel = i; break; }
+        list_clamp();
+    }
+    else list_first_enabled();
 }
 void scr_open_slots( int save )
 {
@@ -641,12 +694,27 @@ void scr_open_slots( int save )
 }
 static void do_save( void )
 {
-    char name[64];
+    char name[96], what[48], msg[48];
+    int slot = pending_slot;
     if ( pending_slot < 0 || !scen_info ) return;
-    snprintf( name, sizeof name, "%.36s, turn %d", scen_info->name, turn + 1 );
-    if ( !slot_save( pending_slot, name ) )   /* LG-02: a failed save is never silent */
-        scr_open_pages( "Save failed", strdup( "The game could not be saved. Is the SD card full or locked?\n\nThe slot keeps what it had before." ) );
+    snprintf( what, sizeof what, "%.36s", scen_info->name );
+    ds_save_name( name, sizeof name, what );
     pending_slot = -1;
+    if ( !slot_save( slot, name ) )   /* LG-02: a failed save is never silent */
+        scr_open_pages( "Save failed", strdup( "The game could not be saved. Is the SD card full or locked?\n\nThe slot keeps what it had before." ) );
+    else {   /* LG-X2: and a good one says so */
+        snprintf( msg, sizeof msg, "Saved to slot %d", slot + 1 );
+        ds_toast( msg );
+    }
+}
+static void do_load( void )
+{
+    int slot = pending_slot;
+    pending_slot = -1;
+    if ( slot < 0 ) return;
+    scr_close();
+    dsb_set_status( setup.type == SETUP_RUN_TITLE ? DSB_STATUS_TITLE : DSB_STATUS_NONE );
+    action_queue_load( slot );
 }
 static void slots_input( void )
 {
@@ -657,16 +725,14 @@ static void slots_input( void )
     }
     if ( r <= 0 ) return;
     r--;
+    pending_slot = r;
     if ( slots_save ) {
-        pending_slot = r;
         if ( slot_is_valid( r ) ) scr_open_confirm( "Overwrite this saved game?", 0, do_save );
-        else { do_save(); scr_close(); }
+        else { scr_close(); do_save(); }
     }
-    else {
-        scr_close();
-        dsb_set_status( setup.type == SETUP_RUN_TITLE ? DSB_STATUS_TITLE : DSB_STATUS_NONE );
-        action_queue_load( r );
-    }
+    else if ( slots_from != UM_TITLE && ds_engine_ready() )   /* LG-Q2: a battle is in play */
+        scr_open_confirm( "Load this saved game?#The battle in play is left. Moves since its last autosave or save are lost.", 0, do_load );
+    else do_load();
 }
 
 /* ======================================================================
@@ -890,13 +956,19 @@ enum { T_CONTINUE = 1, T_SCEN, T_CAMP, T_LOAD, T_OPTIONS, T_HELP, T_QUIT };
 void scr_open_title( void )
 {
     lst_init( "LGeneral", 0 );
-    if ( slot_is_valid( SLOT_COUNT - 1 ) ) lst_add( "Continue", slot_get_name( SLOT_COUNT - 1 ), T_CONTINUE, 1 );
+    if ( slot_is_valid( SLOT_COUNT - 1 ) ) {
+        /* the autosave's name on the right when it fits beside "Continue", else its date, else nothing ("..." never) */
+        const char *date = "", *name = ds_slot_label( SLOT_COUNT - 1, &date );
+        const int room = DS_BOT_W - 26 - 10 - dg_text_w( &dsfont_body, "Continue" );
+        if ( !strncmp( name, "Autosave: ", 10 ) ) name += 10;
+        lst_add( "Continue", dg_text_w( &dsfont_body, name ) <= room ? name : dg_text_w( &dsfont_body, date ) <= room ? date : "", T_CONTINUE, 1 );
+    }
     lst_add( "New scenario", 0, T_SCEN, 1 );
     lst_add( "New campaign", 0, T_CAMP, 1 );
     lst_add( "Load game", 0, T_LOAD, 1 );
-    lst_add( "Options", 0, T_OPTIONS, 1 );
-    lst_add( "Manual", 0, T_HELP, 1 );
-    lst_add( "Quit", 0, T_QUIT, 1 );
+    lst_add( "Settings", 0, T_OPTIONS, 1 );
+    lst_add( "Manual", "build " PORT_VERSION, T_HELP, 1 );
+    lst_add( "Exit game", 0, T_QUIT, 1 );
     ui_mode = UM_TITLE;
     ds_mark_all();
 }
@@ -906,9 +978,11 @@ static void title_draw_top( void )
     dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
     if ( gui && gui->bkgnd ) {
         int sw = gui->bkgnd->w, sh = gui->bkgnd->h;
-        int dh = DS_TOP_H, dw = sw * dh / ( sh ? sh : 1 );
-        if ( dw > ds_tw ) { dw = ds_tw; dh = sh * dw / sw; }
-        dg_blit_scaled( gui->bkgnd, 0, 0, sw, sh, ( ds_tw - dw ) / 2, ( DS_TOP_H - dh ) / 2, dw, dh );
+        /* LG-U3: the art fills the screen's width (no side bars); what does not fit is cut evenly top and bottom */
+        int ch = sw * DS_TOP_H / ds_tw;
+        if ( ch > sh ) ch = sh;
+        if ( ch < 1 ) ch = 1;
+        dg_blit_scaled( gui->bkgnd, 0, ( sh - ch ) / 2, sw, ch, 0, 0, ds_tw, DS_TOP_H );
     }
     dg_fill_a( 0, DS_TOP_H - 22, ds_tw, 22, DC_BG, 190 );
     dg_text( &dsfont_small, 6, DS_TOP_H - 17, DC_DIM, "LGeneral 1.4.4 (c) Michael Speck - GPL. 3DS edition." );
@@ -941,35 +1015,59 @@ static void title_input( void )
    Game menu (Start)
    ====================================================================== */
 enum { G_RESUME = 1, G_UNITS, G_PURCHASE, G_DEPLOY, G_INFO, G_CONDS, G_SAVE, G_LOAD,
-       G_OPTIONS, G_HELP, G_DISBAND, G_ENDTURN, G_RESTART, G_QUIT, G_PEDIA, G_EXIT };
+       G_OPTIONS, G_HELP, G_DISBAND, G_ENDTURN, G_RESTART, G_QUIT, G_PEDIA, G_EXIT, G_ORDERS };
+
+/* LG-X1: START opens the house menu (RESUME, MANUAL, SAVE GAME, LOAD GAME, SETTINGS, the game's own row,
+   EXIT GAME: seven rows, all on screen, nothing to scroll). Everything about the battle itself is one row
+   down, on the ORDERS AND INFO page. */
+static int menu_orders = 0;          /* 0: the START menu, 1: its ORDERS AND INFO page */
+static int menu_sel[2] = { 0, 0 };   /* the highlighted row of each page, kept while a sub-screen is open */
 
 void scr_open_game_menu( void )
 {
     char t[32];
     dsui_options_save();   /* LG-05: a changed swap or zoom is written when the menu opens */
-    lst_init( "Menu", 0 );
-    lst_add( "Resume", 0, G_RESUME, 1 );
-    snprintf( t, sizeof t, "%d ready", ds_ready_units() );
-    lst_add( "Unit list", t, G_UNITS, 1 );
-    lst_add( "Purchase units", 0, G_PURCHASE, dsb_purchase_allowed() );
-    if ( dsb_deploy_turn() ) t[0] = 0;
-    else snprintf( t, sizeof t, "%d waiting", avail_units ? avail_units->count : 0 );
-    lst_add( "Deploy units", t, G_DEPLOY, dsb_deploy_allowed() );
-    lst_add( "Scenario info", 0, G_INFO, 1 );
-    lst_add( "Victory conditions", 0, G_CONDS, 1 );
-    lst_add( "Save game", 0, G_SAVE, dsb_status() == DSB_STATUS_NONE && !dsb_deploy_turn() );
-    lst_add( "Load game", 0, G_LOAD, 1 );
-    lst_add( "Options", 0, G_OPTIONS, 1 );
-    lst_add( "Encyclopedia", "units, terrain", G_PEDIA, unit_lib && unit_lib->count > 0 );
-    lst_add( "Manual", "build " PORT_VERSION, G_HELP, 1 );
-    lst_add( "Disband selected unit", 0, G_DISBAND, cur_unit && cur_unit->unused );
-    if ( dsb_status() == DSB_STATUS_DEPLOY ) lst_add( "Finish deployment", 0, G_ENDTURN, 1 );
-    else lst_add( "End turn", 0, G_ENDTURN, dsb_status() == DSB_STATUS_NONE );
-    lst_add( "Restart scenario", 0, G_RESTART, 1 );
-    lst_add( "Quit to title", 0, G_QUIT, 1 );
-    lst_add( "Exit game", 0, G_EXIT, 1 );
+    if ( !menu_orders ) {
+        const int can_save = dsb_status() == DSB_STATUS_NONE && !dsb_deploy_turn();
+        lst_init( "MENU", 0 );
+        lst_add( "RESUME", 0, G_RESUME, 1 );
+        lst_add( "MANUAL", "build " PORT_VERSION, G_HELP, 1 );
+        lst_add( "SAVE GAME", can_save ? 0 : dsb_deploy_turn() ? "after deployment" : "finish the order first", G_SAVE, can_save );
+        lst_add( "LOAD GAME", 0, G_LOAD, 1 );
+        lst_add( "SETTINGS", 0, G_OPTIONS, 1 );
+        snprintf( t, sizeof t, "%d ready", ds_ready_units() );
+        lst_add( "ORDERS AND INFO", t, G_ORDERS, 1 );
+        lst_add( "EXIT GAME", 0, G_EXIT, 1 );
+    }
+    else {
+        lst_init( "ORDERS AND INFO", 0 );
+        snprintf( t, sizeof t, "%d ready", ds_ready_units() );
+        lst_add( "UNIT LIST", t, G_UNITS, 1 );
+        lst_add( "PURCHASE UNITS", 0, G_PURCHASE, dsb_purchase_allowed() );
+        if ( dsb_deploy_turn() ) t[0] = 0;
+        else snprintf( t, sizeof t, "%d waiting", avail_units ? avail_units->count : 0 );
+        lst_add( "DEPLOY UNITS", t, G_DEPLOY, dsb_deploy_allowed() );
+        if ( dsb_status() == DSB_STATUS_DEPLOY ) lst_add( "FINISH DEPLOYMENT", 0, G_ENDTURN, 1 );
+        else lst_add( "END TURN", 0, G_ENDTURN, dsb_status() == DSB_STATUS_NONE );
+        lst_add( "DISBAND SELECTED UNIT", 0, G_DISBAND, cur_unit && cur_unit->unused );
+        lst_add( "SCENARIO INFO", 0, G_INFO, 1 );
+        lst_add( "VICTORY CONDITIONS", 0, G_CONDS, 1 );
+        lst_add( "ENCYCLOPEDIA", "units, terrain", G_PEDIA, unit_lib && unit_lib->count > 0 );
+        lst_add( "RESTART SCENARIO", 0, G_RESTART, 1 );
+        lst_add( "QUIT TO TITLE", 0, G_QUIT, 1 );
+        lst_buttons( "Back", 0, 0 );
+    }
+    sel = menu_sel[menu_orders];
+    if ( sel < 0 || sel >= n_items || !items[sel].enabled ) list_first_enabled();
+    list_clamp();
     ui_mode = UM_MENU;
     ds_mark_all();
+}
+/* START: always the first page, RESUME highlighted */
+void scr_open_start_menu( void )
+{
+    menu_orders = 0; menu_sel[0] = menu_sel[1] = 0;
+    scr_open_game_menu();
 }
 
 /* Rule 17 (never lose progress): leaving a game saves it to the autosave slot first, the one
@@ -977,9 +1075,11 @@ void scr_open_game_menu( void )
 static int suspend_ok( void ) { return scen_info && dsb_status() == DSB_STATUS_NONE && !dsb_deploy_turn(); }
 static int suspend_save( void )   /* 1: saved (or nothing to save), 0: the save failed */
 {
-    char name[64];
+    char name[96];
     if ( !suspend_ok() ) return 1;
-    snprintf( name, sizeof name, "Autosave: %.30s, turn %d", scen_info->name, turn + 1 );
+    char what[48];
+    snprintf( what, sizeof what, "Autosave: %.30s", scen_info->name );
+    ds_save_name( name, sizeof name, what );
     int ok = slot_save( SLOT_COUNT - 1, name );
     printf( "dsui: suspend save (%s) %s\n", name, ok ? "ok" : "FAILED" ); fflush( stdout );
     return ok;
@@ -998,20 +1098,24 @@ static void exit_anyway( void ) { action_queue_quit(); }
 static void quit_yes( void )
 {
     if ( suspend_save() ) dsb_quit_to_title();
-    else scr_open_confirm( "The save failed (SD card full or locked?).#Quit anyway? Progress since the last save is lost.", 0, quit_anyway );
+    else scr_open_confirm( "Not saved! (SD card full or locked?)#Quit anyway? Progress since the last save is lost.", 0, quit_anyway );
 }
 static void exit_yes( void )
 {
     if ( suspend_save() ) action_queue_quit();
-    else scr_open_confirm( "The save failed (SD card full or locked?).#Exit anyway? Progress since the last save is lost.", 0, exit_anyway );
+    else scr_open_confirm( "Not saved! (SD card full or locked?)#Exit anyway? Progress since the last save is lost.", 0, exit_anyway );
 }
 static void restart_yes( void ) { action_queue_restart(); }
 
 static void menu_input( void )
 {
     int r = list_input();
+    menu_sel[menu_orders] = sel;
+    if ( menu_orders && ( r == L_BACK || r == L_BTN0 ) ) { menu_orders = 0; scr_open_game_menu(); return; }   /* back to the START menu */
+    if ( in.pressed & K_START ) r = G_RESUME;   /* B or START closes the menu */
     switch ( r ) {
         case L_BACK: case G_RESUME: scr_close(); break;
+        case G_ORDERS: menu_orders = 1; scr_open_game_menu(); break;
         case G_UNITS: scr_open_unitlist(); break;
         case G_PURCHASE: scr_open_purchase(); break;
         case G_DEPLOY: scr_close(); dsb_press( ID_DEPLOY ); break;
@@ -1024,11 +1128,11 @@ static void menu_input( void )
         case G_PEDIA: scr_open_pedia( 0 ); break;
         case G_DISBAND: scr_close(); dsb_press( ID_DISBAND ); break;
         case G_ENDTURN: scr_close(); ds_end_turn_request(); break;
-        case G_RESTART: scr_open_confirm( "Restart this scenario from the beginning?", 0, restart_yes ); break;
-        case G_QUIT: scr_open_confirm( suspend_ok() ? "Quit to the title screen?#The game is saved first: Continue picks it up."
-                                                    : "Quit to the title screen?#Unsaved progress since the last autosave is lost.", 0, quit_yes ); break;
-        case G_EXIT: scr_open_confirm( suspend_ok() ? "Exit LGeneral?#The game is saved first: Continue picks it up."
-                                                    : "Exit LGeneral?#Unsaved progress since the last autosave is lost.", 0, exit_yes ); break;
+        case G_RESTART: scr_open_confirm( "Restart this scenario from the beginning?#The battle in play is lost.", 0, restart_yes ); break;
+        case G_QUIT: scr_open_confirm( suspend_ok() ? "Quit to the title screen?#It is saved first: Continue picks it up."
+                                                    : "Quit to the title screen?#Not saved here: progress since the last autosave is lost.", 0, quit_yes ); break;
+        case G_EXIT: scr_open_confirm( suspend_ok() ? "Exit LGeneral?#It is saved first: Continue picks it up."
+                                                    : "Exit LGeneral?#Not saved here: progress since the last autosave is lost.", 0, exit_yes ); break;
     }
 }
 
@@ -1737,7 +1841,7 @@ static void pedia_draw_top( void )
 unsigned scr_view_key( void )
 {
     unsigned lo = ( (unsigned)scroll_top * 31u + (unsigned)pu_class_top * 7u + (unsigned)pd_class_top * 11u ) & 0xffff;
-    unsigned hi = ( (unsigned)sel * 131u + (unsigned)page_i * 17u + (unsigned)pu_class * 3u + (unsigned)man_page * 257u + (unsigned)pd_class * 5u + (unsigned)pd_tab * 1031u + (unsigned)pd_weather * 13u + (unsigned)ui_mode ) & 0xffff;
+    unsigned hi = ( (unsigned)sel * 131u + (unsigned)page_i * 17u + (unsigned)pu_class * 3u + ( (unsigned)man_page * 257u + (unsigned)man_skip * 53u ) + (unsigned)pd_class * 5u + (unsigned)pd_tab * 1031u + (unsigned)pd_weather * 13u + (unsigned)ui_mode ) & 0xffff;
     return ( hi << 16 ) | lo;
 }
 

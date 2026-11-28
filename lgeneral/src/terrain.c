@@ -107,9 +107,18 @@ static int fog_tiles_fast( SDL_Surface *dst, int count )
     return 1;
 }
 
+#ifdef DSUI
+#include "dsui.h"
+#define TT( acc ) do { Uint32 _n = SDL_GetTicks(); acc += _n - tt_prev; tt_prev = _n; } while ( 0 )
+#else
+#define TT( acc )
+#endif
 int terrain_load( char *fname )
 {
     int i, j, k;
+#ifdef DSUI
+    Uint32 tt_prev = SDL_GetTicks(), tt_parse = 0, tt_icons = 0, tt_img = 0, tt_fog = 0, tt_rest = 0, tt_show = 0;
+#endif
     PData *pd, *sub, *subsub, *subsubsub;
     List *entries, *flags;
     char path[512];
@@ -118,11 +127,12 @@ int terrain_load( char *fname )
     int count;
     /* log info */
     int  log_dot_limit = 40; /* maximum of dots */
-    char log_str[128];
+    char log_str[128] = "";
     sprintf( path, "%s/maps/%s", get_gamedir(), fname );
     if ( ( pd = parser_read_file( fname, path ) ) == 0 ) goto parser_failure;
     domain = determine_domain(pd, fname);
     locale_load_domain(domain, 0/*FIXME*/);
+    TT( tt_parse );
     /* get weather */
     if ( !parser_get_entries( pd, "weather", &entries ) ) goto parser_failure;
     weather_type_count = entries->count;
@@ -176,6 +186,7 @@ int terrain_load( char *fname )
     if ( parser_get_value( pd, "select_sound", &str, 0 ) )
         terrain_icons->wav_select = wav_load( str, 1 );
 #endif
+    TT( tt_icons );
     /* terrain types */
     if ( !parser_get_entries( pd, "terrain", &entries ) ) goto parser_failure;
     terrain_type_count = entries->count;
@@ -203,6 +214,7 @@ int terrain_load( char *fname )
                                  get_pixel( terrain_types[i].images[j], 0, 0 ) );
             }
         }
+        TT( tt_img );
         /* fog image */
         terrain_types[i].images_fogged = calloc( weather_type_count, sizeof( SDL_Surface* ) );
         for ( j = 0; j < weather_type_count; j++ ) {
@@ -225,6 +237,7 @@ int terrain_load( char *fname )
                 SDL_SetColorKey( terrain_types[i].images_fogged[j], SDL_SRCCOLORKEY, get_pixel( terrain_types[i].images[j], 0, 0 ) );
             }
         }
+        TT( tt_fog );
         /* spot cost */
         terrain_types[i].spt = calloc( weather_type_count, sizeof( int ) );
         if ( !parser_get_pdata( sub, "spot_cost",  &subsub ) ) goto parser_failure;
@@ -262,14 +275,26 @@ int terrain_load( char *fname )
         }
         /* next terrain */
         i++;
+        TT( tt_rest );
+#ifdef DSUI
+        /* LG-Q1: the load screen's bar moves with every terrain type */
+        dsui_load_progress( DSUI_LOAD_MAP, i * 100 / entries->count );
+        TT( tt_show );
+#else
         /* LOG */
         strcpy( log_str, "  [                                        ]" );
         for ( k = 0; k < i * log_dot_limit / entries->count; k++ )
             log_str[3 + k] = '*';
         write_text( log_font, sdl.screen, log_x, log_y, log_str, 255 );
         SDL_UpdateRect( sdl.screen, log_font->last_x, log_font->last_y, log_font->last_width, log_font->last_height );
+#endif
     }
     parser_free( &pd );
+#ifdef DSUI
+    TT( tt_rest );
+    printf( "load: terrain: parse %u, icons %u, images %u, fog %u, tables %u, progress %u ms (%d types)\n",
+            (unsigned)tt_parse, (unsigned)tt_icons, (unsigned)tt_img, (unsigned)tt_fog, (unsigned)tt_rest, (unsigned)tt_show, terrain_type_count );
+#endif
     /* LOG */
     write_line( sdl.screen, log_font, log_str, log_x, &log_y ); refresh_screen( 0, 0, 0, 0 );
     free(domain);

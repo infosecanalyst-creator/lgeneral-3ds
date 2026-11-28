@@ -32,4 +32,5 @@ out += ['  %s,' % c(b) for _, b in pages] + ['};', 'static const char *const man
 out += ['  %s,' % c(n) for n, _ in chapters] + ['};', 'static const int manual_chapter_page[MANUAL_CHAPTERS] = {']
 out += ['  ' + ', '.join(str(p) for _, p in chapters), '};', '']
 open(os.path.join(root, 'platform', 'dsui', 'dsui_manual.h'), 'w', encoding='latin-1').write('\n'.join(out))
+assert len(pages) == len(chapters), 'one page per chapter: the manual scrolls, do not split a chapter into (1/2), (2/2)'
 print(len(pages), 'pages,', len(chapters), 'chapters')

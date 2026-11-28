@@ -269,10 +269,10 @@ void ds_read_input( void )
     }
     in.rep = in.pressed;
 #define K_SCROLL ( K_PUP | K_PDOWN | K_CUP | K_CDOWN )
-    {   /* sticks scroll the manual a page at a time: slower repeat so a page can be read */
+    {   /* sticks scroll the manual a line at a time; held, they keep scrolling */
         static Uint32 srep_time = 0;
-        if ( in.pressed & K_SCROLL ) { in.rep |= in.pressed & K_SCROLL; srep_time = now + 450; }
-        else if ( ( h & K_SCROLL ) && now >= srep_time ) { in.rep |= h & K_SCROLL; srep_time = now + 350; }
+        if ( in.pressed & K_SCROLL ) { in.rep |= in.pressed & K_SCROLL; srep_time = now + 250; }
+        else if ( ( h & K_SCROLL ) && now >= srep_time ) { in.rep |= h & K_SCROLL; srep_time = now + 60; }
     }
     if ( in.pressed & K_DIRS ) rep_time = now + 300;
     else if ( ( h & K_DIRS ) && now >= rep_time ) { in.rep |= h & K_DIRS; rep_time = now + 75; }
@@ -316,13 +316,19 @@ static void sync_view( void )
     }
 }
 
-/* extra room past the map edges so units under the side strips can be reached */
+/* extra room past the map edges so units under the side strips can be reached.
+   LG-U1: only while that strip is on screen and covers the map (the deploy strip with units waiting
+   on the left; the action strip on the right, shown while a unit is selected); otherwise the map edge is the screen edge. */
 #define VIEW_LM 56
 #define VIEW_RM 44
+static int deploy_strip_units( void )
+{
+    return dsb_status() == DSB_STATUS_DEPLOY && left_deploy_units && left_deploy_units->count > 0;
+}
 /* move view by canvas pixels; scroll the engine map when leaving the canvas */
 static void pan_view( int dx, int dy )
 {
-    int vw, vh, guard = 8, lm = B2C( VIEW_LM ), rm = B2C( VIEW_RM );
+    int vw, vh, guard = 8, lm = deploy_strip_units() ? B2C( VIEW_LM ) : 0, rm = cur_unit ? B2C( VIEW_RM ) : 0;
     int at_left = 0, at_right = 0;
     view_size( &vw, &vh );
     vx += dx; vy += dy;
@@ -408,9 +414,10 @@ static void ensure_visible( int mx, int my )
         int dx = 0, dy = 0;
         if ( !hex_to_bot( mx, my, &bx, &by ) ) { ds_center_on( mx, my ); return; }
         bx -= DS_BOT_X; by -= DS_BOT_Y;
-        int lm = ( dsb_status() == DSB_STATUS_DEPLOY ) ? VIEW_LM + 10 : 10;
+        int lm = deploy_strip_units() ? VIEW_LM + 10 : 10;
         if ( bx < lm ) dx = B2C( bx - lm - 26 );
-        else if ( bx + hw > DS_BOT_W - 50 ) dx = B2C( bx + hw - ( DS_BOT_W - 74 ) );
+        else if ( cur_unit && bx + hw > DS_BOT_W - 50 ) dx = B2C( bx + hw - ( DS_BOT_W - 74 ) );
+        else if ( bx + hw > DS_BOT_W - 4 ) dx = B2C( bx + hw - ( DS_BOT_W - 28 ) );
         if ( by < 10 ) dy = B2C( by - 30 );
         else if ( by + hh > DS_BOT_H - 10 ) dy = B2C( by + hh - ( DS_BOT_H - 34 ) );
         if ( !dx && !dy ) return;
@@ -430,6 +437,17 @@ static void push_msg( const char *t )
     snprintf( msgs[0], sizeof msgs[0], "%s", t );
     if ( msg_count < MSG_N ) msg_count++;
     ds_top_dirty = 1;
+}
+
+/* LG-X2: a short line over the map that goes away by itself ("Saved to slot 3") */
+static char toast_text[64];
+static Uint32 toast_until = 0;
+void ds_toast( const char *text )
+{
+    snprintf( toast_text, sizeof toast_text, "%s", text ? text : "" );
+    toast_until = SDL_GetTicks() + 2500;
+    push_msg( toast_text );
+    ds_mark_all();
 }
 
 void dsui_label( void *label, const char *text )
@@ -457,10 +475,53 @@ void ds_clear_selection( void ) { clear_selection_state(); }
 int ds_engine_ready( void ) { return engine_ready; }
 
 static Uint32 load_t0 = 0;
+/* LG-Q1: load screen. The loader calls dsui_load_progress at each stage and after every terrain
+   type; each call repaints both screens at once (the loader does not return to the main loop). */
+static int load_stage = -1, load_pct = 0;
+static const char *load_names[DSUI_LOAD_STAGES] = { "Scenario and nations", "Unit library", "Map and terrain", "Placing units" };
+static const int load_from[DSUI_LOAD_STAGES + 1] = { 0, 4, 20, 94, 100 };   /* share of the bar per stage */
 void dsui_engine_reset( void )
 {
     load_t0 = SDL_GetTicks();
     engine_ready = 0;
+    load_stage = -1; load_pct = 0;
+}
+void dsui_load_progress( int stage, int pct )
+{
+    int total;
+    if ( stage < 0 || stage >= DSUI_LOAD_STAGES ) return;
+    if ( pct < 0 ) pct = 0;
+    if ( pct > 100 ) pct = 100;
+    total = load_from[stage] + ( load_from[stage + 1] - load_from[stage] ) * pct / 100;
+    if ( stage == load_stage && total == load_pct ) return;
+    load_stage = stage; load_pct = total;
+    if ( engine_ready || setup.type == SETUP_RUN_TITLE || !ds_screen ) return;
+    ds_mark_all();
+    ds_present();
+}
+static void bar( int x, int y, int w, int h, int val, int max, DSColor c );
+static void load_draw_bottom( void )
+{
+    char t[64];
+    int x = DS_BOT_X + 40, w = DS_BOT_W - 80;
+    dg_text_c( &dsfont_bold, DS_BOT_X + DS_BOT_W / 2, DS_BOT_Y + 84, DC_TEXT, "Loading..." );
+    if ( load_stage < 0 ) return;
+    bar( x, DS_BOT_Y + 108, w, 14, load_pct, 100, DC_ACCENT );
+    snprintf( t, sizeof t, "%s  %d%%", load_names[load_stage], load_pct );
+    dg_text_c( &dsfont_small, DS_BOT_X + DS_BOT_W / 2, DS_BOT_Y + 130, DC_DIM, t );
+}
+static void load_draw_top( void )
+{
+    int i, y = 62;
+    dg_panel( 4, 24, ds_tw - 8, 212 );
+    dg_text_fit( &dsfont_title, 14, 32, ds_tw - 28, DC_ACCENT, scen_info && scen_info->name ? scen_info->name : "Loading" );
+    for ( i = 0; i < DSUI_LOAD_STAGES; i++, y += 22 ) {
+        const int done = i < load_stage, now = i == load_stage;
+        dg_text( &dsfont_body, 14, y, done ? DC_GOOD : now ? DC_TEXT : DC_DISABLED, done ? "Done" : now ? "Now" : "Next" );
+        dg_text( &dsfont_body, 60, y, now ? DC_TEXT : done ? DC_DIM : DC_DISABLED, load_names[i] );
+    }
+    dg_text_wrap( &dsfont_small, 14, 164, ds_tw - 28, 60, DC_DIM,
+                  "The battle map is being built. Buttons and taps wait until it is ready.", 0 );
 }
 
 #if !defined(__3DS__) && defined(__GLIBC__)
@@ -520,7 +581,7 @@ static void spectator_menu( void )
 void dsui_turn_begins( int human )
 {
     if ( menu_pending ) {
-        if ( human ) { menu_pending = 0; scr_open_game_menu(); }
+        if ( human ) { menu_pending = 0; scr_open_start_menu(); }
         else if ( !any_human_player() ) { menu_pending = 0; spectator_menu(); }
     }
     clear_selection_state();
@@ -552,8 +613,9 @@ void dsui_turn_begins( int human )
     if ( human ) {
         msg_count = 0;
         if ( !dsb_deploy_turn() && scen_info ) {
-            char name[64];
-            snprintf( name, sizeof name, "Autosave: %.30s, turn %d", scen_info->name, turn + 1 );
+            char name[96], what[48];
+            snprintf( what, sizeof what, "Autosave: %.30s", scen_info->name );
+            ds_save_name( name, sizeof name, what );
             if ( !slot_save( SLOT_COUNT - 1, name ) )   /* LG-02: say so; the previous autosave is kept */
                 scr_open_pages( "Autosave failed", strdup( "The autosave could not be written. Is the SD card full or locked?\n\nThe previous autosave is kept. Save by hand from the menu once the card has room." ) );
         }
@@ -851,7 +913,7 @@ static void deploy_input( void )
         ds_mark_all();
     }
     if ( in.pressed & K_Y ) dsb_press( ID_APPLY_DEPLOY );
-    if ( in.tap && in.tap_x < DEP_W ) {
+    if ( in.tap && in.tap_x < DEP_W && ( n > 0 || in.tap_y >= DS_BOT_H - 64 ) ) {
         ds_click();
         if ( in.tap_y >= DS_BOT_H - 64 && in.tap_y < DS_BOT_H - 34 ) dsb_press( ID_APPLY_DEPLOY );
         else if ( in.tap_y >= DS_BOT_H - 34 ) { if ( !dsb_deploy_turn() ) dsb_press( ID_CANCEL_DEPLOY ); }
@@ -915,7 +977,7 @@ static void map_input( void )
         return; /* animations etc. */
 
     /* --- buttons --- */
-    if ( in.pressed & K_START ) { scr_open_game_menu(); return; }
+    if ( in.pressed & K_START ) { scr_open_start_menu(); return; }
     if ( ( in.pressed & K_SELECT ) && !deploy ) { scr_open_overview(); return; }
     if ( in.pressed & K_ZR ) { set_zoom( ds_zoom_level >= 2 ? 0 : ds_zoom_level + 1 ); dsui_options_mark(); }   /* ZL is the screen swap */
     if ( in.held & ( K_CUP | K_CDOWN | K_CLEFT | K_CRIGHT ) ) {
@@ -1039,6 +1101,12 @@ int dsui_tick( void )
         }
     }
     if ( engine_ready ) sync_view();
+    if ( engine_ready ) {   /* LG-U1: a strip went away: bring the map edge back to the screen edge */
+        static int m_last = 0;
+        const int m = ( deploy_strip_units() ? 1 : 0 ) | ( cur_unit ? 2 : 0 );
+        if ( m_last & ~m ) pan_view( 0, 0 );
+        m_last = m;
+    }
     if ( ui_mode == UM_NONE ) {
         if ( st == DSB_STATUS_CONF ) scr_open_confirm( confirm_text, 1, 0 );
         else if ( st == DSB_STATUS_CAMP_BRIEFING ) scr_open_campbrief();
@@ -1253,7 +1321,9 @@ static void draw_deploy_strip( void )
     int rows = dep_rows(), i;
     int x = DS_BOT_X;
     if ( dep_scroll > ( n > rows ? n - rows : 0 ) ) dep_scroll = n > rows ? n - rows : 0;
-    dg_fill_a( x, DS_BOT_Y, DEP_W, DS_BOT_H, DC_BG, 220 );
+    /* LG-U1: the dark strip only while units wait in it; with none left only Done and Cancel stay, on the map */
+    if ( n > 0 ) dg_fill_a( x, DS_BOT_Y, DEP_W, DS_BOT_H, DC_BG, 220 );
+    else dg_fill_a( x, DS_BOT_Y + DS_BOT_H - 68, DEP_W, 68, DC_BG, 220 );
     for ( i = 0; i < rows && dep_scroll + i < n; i++ ) {
         Unit *u = list_get( left_deploy_units, dep_scroll + i );
         int y = DS_BOT_Y + i * DEP_ROW;
@@ -1277,8 +1347,7 @@ static void draw_bottom_map( void )
     int st = dsb_status();
     if ( !ds_canvas || !engine_ready || !scen_info || setup.type == SETUP_RUN_TITLE ) {
         dg_fill( DS_BOT_X, DS_BOT_Y, DS_BOT_W, DS_BOT_H, DC_BG );
-        if ( !engine_ready && setup.type != SETUP_RUN_TITLE )
-            dg_text_c( &dsfont_bold, DS_BOT_X + DS_BOT_W / 2, DS_BOT_Y + 110, DC_DIM, "Loading..." );
+        if ( !engine_ready && setup.type != SETUP_RUN_TITLE ) load_draw_bottom();
         return;
     }
     {
@@ -1305,7 +1374,8 @@ static void draw_bottom_map( void )
     if ( dsb_cpu_turn() ) return;
     if ( st == DSB_STATUS_DEPLOY ) draw_deploy_strip();
     else if ( strip_visible() ) draw_strip();
-    if ( st == DSB_STATUS_MERGE ) draw_banner( "Tap a unit to merge with  -  B: cancel" );
+    if ( toast_until && SDL_GetTicks() < toast_until && st == DSB_STATUS_NONE && !fc_target && !fc_strat ) draw_banner( toast_text );
+    else if ( st == DSB_STATUS_MERGE ) draw_banner( "Tap a unit to merge with  -  B: cancel" );
     else if ( st == DSB_STATUS_SPLIT ) draw_banner( "Tap a hex or unit for the split  -  B: cancel" );
     else if ( st == DSB_STATUS_DROP ) draw_banner( "Tap a drop zone  -  B: cancel" );
     /* UI rule 14: the full forecast card is on the top screen, so its verdict also shows here,
@@ -1350,7 +1420,7 @@ void ds_status_bar( void )
     int x = 4;
     dg_fill( 0, 0, ds_tw, 20, DC_PANEL );
     dg_hline( 0, 19, ds_tw, DC_BORDER );
-    if ( !scen_info || !cur_player ) {
+    if ( !scen_info || !cur_player || !engine_ready ) {   /* while loading the game data is half built */
         dg_text( &dsfont_bold, 6, 3, DC_TEXT, "LGeneral" );
         return;
     }
@@ -1546,11 +1616,11 @@ static void hints_card( int x, int y, int w, int h )
         return;
     }
     if ( cur_unit )
-        dg_text_wrap( &dsfont_small, x + 6, row, w - 12, h - 10, DC_DIM,
+        dg_text_wrap( &dsfont_small, x + 6, row, w - 12, h - 10, DC_TEXT,
                       "Tap a hex to move. Tap an enemy for the forecast, tap again to attack. "
                       "Drag the unit to move it. Long-press any unit for full stats.", 0 );
     else
-        dg_text_wrap( &dsfont_small, x + 6, row, w - 12, h - 10, DC_DIM,
+        dg_text_wrap( &dsfont_small, x + 6, row, w - 12, h - 10, DC_TEXT,
                       "Tap a unit to select it, or press R for the next unit with orders. "
                       "Tap an enemy to see how far it can reach; hold L for all enemy threat. "
                       "Drag to pan, ZR to zoom, ZL to swap screens, Y to end the turn, Start for the menu.", 0 );
@@ -1664,10 +1734,30 @@ static void objectives_box( int x, int y, int w, int h )
             }
     snprintf( t, sizeof t, "Objectives %d/%d", own, total );
     dg_text( &dsfont_bold, x, y, DC_ACCENT, t );
-    snprintf( t, sizeof t, "Ready units: %d", cur_player && !dsb_cpu_turn() ? ds_ready_units() : 0 );
-    dg_text( &dsfont_small, x, y + 16, DC_DIM, t );
-    snprintf( t, sizeof t, "Zoom %d%%", zpct_tab[ds_zoom_level] );
-    dg_text( &dsfont_small, x, y + 28, DC_DIM, t );
+    snprintf( t, sizeof t, "Ready units: %d   Zoom %d%%", cur_player && !dsb_cpu_turn() ? ds_ready_units() : 0, zpct_tab[ds_zoom_level] );
+    if ( dg_text_w( &dsfont_small, t ) > w ) snprintf( t, sizeof t, "Ready: %d   Zoom %d%%", cur_player && !dsb_cpu_turn() ? ds_ready_units() : 0, zpct_tab[ds_zoom_level] );
+    dg_text( &dsfont_small, x, y + 16, DC_TEXT, t );
+    if ( own < total && cur_player ) {
+        /* LG-U7: the objective still to take that is nearest to the selected unit (or the middle of the view) */
+        int fx, fy, r, best = -1, bx = 0, by = 0;
+        if ( cur_unit && cur_unit->x >= 0 ) { fx = cur_unit->x; fy = cur_unit->y; }
+        else {
+            int cx, cy;
+            bot_to_canvas( DS_BOT_W / 2, DS_BOT_H / 2, &cx, &cy );
+            if ( !dsb_map_pos( cx, cy, &fx, &fy, &r ) ) { fx = map_x + map_sw / 2; fy = map_y + map_sh / 2; }
+        }
+        for ( mx = 0; mx < map_w; mx++ )
+            for ( my = 0; my < map_h; my++ )
+                if ( map[mx][my].obj && !( map[mx][my].player && player_is_ally( map[mx][my].player, cur_player ) ) ) {
+                    int d = get_dist( fx, fy, mx, my );
+                    if ( best < 0 || d < best ) { best = d; bx = mx; by = my; }
+                }
+        if ( best >= 0 && map[bx][by].name ) {
+            dg_text( &dsfont_small, x, y + 29, DC_DIM, "Next to take:" );
+            snprintf( t, sizeof t, "%.40s", map[bx][by].name );
+            if ( dg_text_w( &dsfont_small, t ) <= w ) dg_text( &dsfont_small, x, y + 41, DC_TEXT, t );
+        }
+    }
 }
 
 static void draw_top( void )
@@ -1677,7 +1767,11 @@ static void draw_top( void )
     dg_noclip();
     dg_fill( 0, 0, ds_tw, DS_TOP_H, DC_BG );
     if ( ui_mode != UM_NONE ) { scr_draw_top(); return; }
-    if ( !engine_ready || !scen_info || setup.type == SETUP_RUN_TITLE ) { ds_status_bar(); return; }
+    if ( !engine_ready || !scen_info || setup.type == SETUP_RUN_TITLE ) {
+        ds_status_bar();
+        if ( !engine_ready && setup.type != SETUP_RUN_TITLE ) load_draw_top();   /* LG-U2: never an empty screen */
+        return;
+    }
     ds_status_bar();
     /* right column: minimap + objectives (not when the dashboard is on the narrower touch screen:
        the map is on the top screen then, and the cards take the full width) */
@@ -1700,10 +1794,15 @@ static void draw_top( void )
     if ( st == DSB_STATUS_DEPLOY ) {
         dg_panel( 4, 24, CW, 212 );
         if ( deploy_unit ) ds_unit_card( 4, 24, CW, 104, deploy_unit, "DEPLOY", 0 );
-        dg_text_wrap( &dsfont_body, 12, 134, CW - 16, 98, DC_TEXT,
-                      "Tap a unit on the left, then tap a highlighted hex to place it. "
-                      "Tap a placed unit to take it back. L/R pick the next unit. "
-                      "Done (or Y) when finished.", 0 );
+        if ( left_deploy_units && left_deploy_units->count > 0 )
+            dg_text_wrap( &dsfont_body, 12, 134, CW - 16, 98, DC_TEXT,
+                          "Tap a unit on the left, then tap a highlighted hex to place it. "
+                          "Tap a placed unit to take it back. L/R pick the next unit. "
+                          "Done (or Y) when finished.", 0 );
+        else   /* LG-X3: nothing waits: say that Done is the next step */
+            dg_text_wrap( &dsfont_body, 12, deploy_unit ? 134 : 34, CW - 16, deploy_unit ? 98 : 198, DC_TEXT,
+                          "All your units are placed.#Tap Done (or press Y) to start the battle.##"
+                          "To move one first, tap it on the map to take it back, then tap a highlighted hex.", 0 );
         return;
     }
     if ( detail_unit ) {
@@ -1716,7 +1815,7 @@ static void draw_top( void )
     else {
         dg_panel( 4, 24, CW, 104 );
         dg_text( &dsfont_bold, 12, 30, DC_TEXT, "No unit selected" );
-        dg_text_wrap( &dsfont_small, 12, 50, CW - 16, 70, DC_DIM,
+        dg_text_wrap( &dsfont_small, 12, 50, CW - 16, 70, DC_TEXT,
                       "R: next unit with orders.  Green dot: can move.  Amber dot: can still attack.", 0 );
     }
     /* lower card */
@@ -1853,6 +1952,7 @@ void dsui_canvas_updated( int count, SDL_Rect *rects )
 void dsui_frame( void )
 {
     dsui_options_tick();   /* LG-05 */
+    if ( toast_until && SDL_GetTicks() >= toast_until ) { toast_until = 0; ds_bot_dirty = 1; }
     if ( !present_due() ) { if ( ds_top_dirty || ds_bot_dirty ) st_held++; return; }   /* LG-04: next loop */
     ds_present();
 }

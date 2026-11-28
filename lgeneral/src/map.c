@@ -131,6 +131,9 @@ int map_load( char *fname )
     char *str, *tile;
     char *domain = 0;
     List *tiles, *names;
+#ifdef DSUI
+    Uint32 mt0 = 0;
+#endif
     sprintf( path, "%s/maps/%s", get_gamedir(), fname );
     if ( ( pd = parser_read_file( fname, path ) ) == 0 ) goto parser_failure;
     domain = determine_domain(pd, fname);
@@ -141,6 +144,9 @@ int map_load( char *fname )
     /* load terrains */
     if ( !parser_get_value( pd, "terrain_db", &str, 0 ) ) goto parser_failure;
     if ( !terrain_load( str ) ) goto failure;
+#ifdef DSUI
+    mt0 = SDL_GetTicks();
+#endif
     if ( !parser_get_values( pd, "tiles", &tiles ) ) goto parser_failure;
     /* allocate map memory */
     map = calloc( map_w, sizeof( Map_Tile* ) );
@@ -194,6 +200,9 @@ int map_load( char *fname )
     }
     parser_free( &pd );
     free(domain);
+#ifdef DSUI
+    printf( "load: map tiles+names %u ms (%dx%d)\n", (unsigned)( SDL_GetTicks() - mt0 ), map_w, map_h );
+#endif
     return 1;
 parser_failure:
     fprintf( stderr, "%s\n", parser_get_error() );
