@@ -24,7 +24,8 @@ jobs:
           git config --global --add safe.directory '*'
       - uses: actions/checkout@v4
       - name: SDL 1.2 for 3DS
-        run: dkp-pacman -Sy --noconfirm --needed 3ds-sdl 3ds-sdl_mixer 2>&1 | tee libs.log; test ${PIPESTATUS[0]} -eq 0
+        # pkg.devkitpro.org sometimes refuses or stalls CI runners: try three times, a minute apart
+        run: for i in 1 2 3; do dkp-pacman -Sy --noconfirm --needed 3ds-sdl 3ds-sdl_mixer 2>&1 | tee libs.log; test ${PIPESTATUS[0]} -eq 0 && exit 0; echo "retry $i"; sleep 60; done; exit 1
         shell: bash
       - name: Build
         run: make -j$(nproc) 2>&1 | tee build.log; test -f lgeneral.3dsx
